@@ -13,78 +13,78 @@ error_reporting(E_ERROR | E_PARSE);
  * @return string
  */
 function getLocation($aObject) {
-    $sRowName = 'unknown';
-    $sRackName = 'unknown';
+	$sRowName = 'unknown';
+	$sRackName = 'unknown';
 
-    # Location parsing for other realms than objects
-    if ($aObject['realm'] == 'rack') {
-    	$sLocation = $aObject["location_name"] . ': '. $aObject["row_name"];
-    	return $sLocation;
-    }
+	# Location parsing for other realms than objects
+	if ($aObject['realm'] == 'rack') {
+		$sLocation = $aObject["location_name"] . ': '. $aObject["row_name"];
+		return $sLocation;
+	}
 
-    if ($aObject['realm'] == 'row') {
-    	$sLocation = $aObject["location_name"];
-    	return $sLocation;
-    }
+	if ($aObject['realm'] == 'row') {
+		$sLocation = $aObject["location_name"];
+		return $sLocation;
+	}
 
-    if ($aObject['realm'] == 'location') {
-    	if ($aObject["parent_name"] == null)
-    		return '';
-    	$sLocation = $aObject["parent_name"];
-    	return $sLocation;
-    }
+	if ($aObject['realm'] == 'location') {
+		if ($aObject["parent_name"] == null)
+			return '';
 
-    # Try to read the mount informations of the object
-    if ( function_exists('getMountInfo') ) {
-        $mountInfo = getMountInfo (array($aObject['id']));
+		$sLocation = $aObject["parent_name"];
+		return $sLocation;
+	}
 
-        if ( isset( $mountInfo[$aObject['id']][0]["rack_name"] ) )
-            $sRackName = $mountInfo[$aObject['id']][0]["rack_name"];
+	# Try to read the mount informations of the object
+	if ( function_exists('getMountInfo') ) {
+		$mountInfo = getMountInfo (array($aObject['id']));
 
-        $sRowName = 'unknown';
-        if ( isset( $mountInfo[$aObject['id']][0]["row_name"] ) )
-            $sRowName = $mountInfo[$aObject['id']][0]["row_name"];
-    }
-    else {
-        if ( isset( $aObject["Row_name"] ) )
-            $sRowName = $aObject["Row_name"];
+		if ( isset( $mountInfo[$aObject['id']][0]["rack_name"] ) )
+			$sRackName = $mountInfo[$aObject['id']][0]["rack_name"];
 
-        if ( isset( $aObject["Rack_name"] ) )
-            $sRackName = $aObject["Rack_name"];
-    }
+		$sRowName = 'unknown';
+		if ( isset( $mountInfo[$aObject['id']][0]["row_name"] ) )
+			$sRowName = $mountInfo[$aObject['id']][0]["row_name"];
+	} else {
+		if ( isset( $aObject["Row_name"] ) )
+			$sRowName = $aObject["Row_name"];
 
-    # No mount information available - check for a container
-    if ( ( $sRowName == 'unknown' ) && ( $sRackName == 'unknown' ) && ( isset( $aObject['container_id'] ) ) ) {
-        $sContainerName = '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $aObject['container_id']) )  .'">'.$aObject['container_name'].'</a>';
+		if ( isset( $aObject["Rack_name"] ) )
+			$sRackName = $aObject["Rack_name"];
+	}
 
-    	$attributes = getAttrValues ($aObject['id']);
-    	if ( isset($attributes['28']['a_value']) && $attributes['28']['a_value'] != '' )
-    	    $sLocation = $sContainerName.': Slot '.$attributes['28']['a_value'];
-    	else
-           $sLocation = $sContainerName;
+	# No mount information available - check for a container
+	if ( ( $sRowName == 'unknown' ) && ( $sRackName == 'unknown' ) && ( isset( $aObject['container_id'] ) ) ) {
+		$sContainerName = '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $aObject['container_id']) )  .'">'.$aObject['container_name'].'</a>';
 
-        # Get mount info of the container
-        $sContainerRowName = 'unknown';
-        $sContainerRackName = 'unknown';
+		$attributes = getAttrValues ($aObject['id']);
+		if ( isset($attributes['28']['a_value']) && $attributes['28']['a_value'] != '' ) {
+			$sLocation = $sContainerName.': Slot '.$attributes['28']['a_value'];
+		} else {
+			$sLocation = $sContainerName;
+		}
 
-        if ( function_exists('getMountInfo') ) {
+		# Get mount info of the container
+		$sContainerRowName = 'unknown';
+		$sContainerRackName = 'unknown';
 
-            $containerMountInfo = getMountInfo (array($aObject['container_id']));
+		if ( function_exists('getMountInfo') ) {
 
-            if ( isset( $containerMountInfo[$aObject['container_id']][0]["rack_name"] ) )
-                $sContainerRackName = $containerMountInfo[$aObject['container_id']][0]["rack_name"];
+			$containerMountInfo = getMountInfo (array($aObject['container_id']));
 
-            if ( isset( $containerMountInfo[$aObject['container_id']][0]["row_name"] ) )
-            $sContainerRowName = $containerMountInfo[$aObject['container_id']][0]["row_name"];
+			if ( isset( $containerMountInfo[$aObject['container_id']][0]["rack_name"] ) )
+				$sContainerRackName = $containerMountInfo[$aObject['container_id']][0]["rack_name"];
 
-            $sLocation .= '<br/>' . $sContainerRowName.': '.$sContainerRackName;
-        }
-    }
-    else {
-        $sLocation = $sRowName.': '.$sRackName;
-    }
+			if ( isset( $containerMountInfo[$aObject['container_id']][0]["row_name"] ) )
+				$sContainerRowName = $containerMountInfo[$aObject['container_id']][0]["row_name"];
 
-    return $sLocation;
+			$sLocation .= '<br/>' . $sContainerRowName.': '.$sContainerRackName;
+		}
+	} else {
+		$sLocation = $sRowName.': '.$sRackName;
+	}
+
+	return $sLocation;
 
 }
 
@@ -102,66 +102,62 @@ function getLocation($aObject) {
  	# add html hyperlink to http:// and https:// strings
  	$sText = preg_replace("/(http:\/\/|https:\/\/)(([^(\s|,)<]{4,68})[^(\s|,)<]*)/", '<a href="$1$2" target="_blank">$2$4</a>', $sText);
 
-        # try to add mailto: links in text containing an '@' with a domain name
-        $sText = preg_replace("/([a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4})/", '<a href="mailto:$1" target="_blank">$1</a>', $sText);
+	# try to add mailto: links in text containing an '@' with a domain name
+	$sText = preg_replace("/([a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4})/", '<a href="mailto:$1" target="_blank">$1</a>', $sText);
 
-    return $sText;
+	return $sText;
  }
 
 
- # Need for backward compatibility - Define function from Racktables version 0.20.x
+# Need for backward compatibility - Define function from Racktables version 0.20.x
 if ( !function_exists('ip6_format') )
 {
 
-    function ip6_format ($ip_bin) {
-        // maybe this is IPv6-to-IPv4 address?
-        if (substr ($ip_bin, 0, 12) == "\0\0\0\0\0\0\0\0\0\0\xff\xff")
-            return '::ffff:' . implode ('.', unpack ('C*', substr ($ip_bin, 12, 4)));
+	function ip6_format ($ip_bin) {
+		// maybe this is IPv6-to-IPv4 address?
+		if (substr ($ip_bin, 0, 12) == "\0\0\0\0\0\0\0\0\0\0\xff\xff")
+			return '::ffff:' . implode ('.', unpack ('C*', substr ($ip_bin, 12, 4)));
 
-        $result = array();
-        $hole_index = NULL;
-        $max_hole_index = NULL;
-        $hole_length = 0;
-        $max_hole_length = 0;
+		$result = array();
+		$hole_index = NULL;
+		$max_hole_index = NULL;
+		$hole_length = 0;
+		$max_hole_length = 0;
 
-        for ($i = 0; $i < 8; $i++) {
+		for ($i = 0; $i < 8; $i++) {
 
-            $unpacked = unpack ('n', substr ($ip_bin, $i * 2, 2));
-            $value = array_shift ($unpacked);
-            $result[] = dechex ($value & 0xffff);
+			$unpacked = unpack ('n', substr ($ip_bin, $i * 2, 2));
+			$value = array_shift ($unpacked);
+			$result[] = dechex ($value & 0xffff);
 
-            if ($value != 0) {
+			if ($value != 0) {
+				unset ($hole_index);
+				$hole_length = 0;
+			} else {
+				if (! isset ($hole_index))
+					$hole_index = $i;
 
-                unset ($hole_index);
-                $hole_length = 0;
+				if (++$hole_length >= $max_hole_length) {
+					$max_hole_index = $hole_index;
+					$max_hole_length = $hole_length;
+				}
 
-            }
-            else {
+			}
+		}
 
-                if (! isset ($hole_index))
-                    $hole_index = $i;
-                if (++$hole_length >= $max_hole_length) {
-                    $max_hole_index = $hole_index;
-                    $max_hole_length = $hole_length;
-                }
+		if (isset ($max_hole_index)) {
+			array_splice ($result, $max_hole_index, $max_hole_length, array (''));
 
-            }
+			if ($max_hole_index == 0 && $max_hole_length == 8)
+				return '::';
+			elseif ($max_hole_index == 0)
+				return ':' . implode (':', $result);
+			elseif ($max_hole_index + $max_hole_length == 8)
+				return implode (':', $result) . ':';
+		}
 
-        }
-
-        if (isset ($max_hole_index)) {
-             array_splice ($result, $max_hole_index, $max_hole_length, array (''));
-
-            if ($max_hole_index == 0 && $max_hole_length == 8)
-                return '::';
-            elseif ($max_hole_index == 0)
-                return ':' . implode (':', $result);
-            elseif ($max_hole_index + $max_hole_length == 8)
-                return implode (':', $result) . ':';
-        }
-
-        return implode (':', $result);
-    }
+		return implode (':', $result);
+	}
 
 }
 
@@ -213,4 +209,3 @@ function getObjectChildObjectList ($object_id) {
 	return $ret;
 }
 
-?>
