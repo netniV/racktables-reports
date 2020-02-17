@@ -54,9 +54,10 @@ function renderCustomReport()
 						$postField = $postData['Data'];
 					}
 
+					$resultVal = '';
 					if (isset($postData['Csv'])) {
 						$resultVal = call_user_func($postData['Csv'],$Result);
-					} else {
+					} elseif (isset($Result[$postField])) {
 						$resultVal = $Result[$postField];
 					}
 
@@ -273,11 +274,11 @@ function renderCustomReport()
 							$varField = $varData['Data'];
 						}
 
-						$resultVal = ''; //$varName . ': ' . json_encode($varData);
+						$resultVal = ''; //$varField; //$varName . ': ' . json_encode($varData);
 						if ( isset( $Result[$varField] ) ) {
 							$resultVal = $Result[$varField];
 							if ( isset( $varData['Html'] ) ) {
-//								echo 'Calling ' . $varName . "'s ". $varData['Html'] . '<br/>';
+//mjv								echo 'Calling ' . $varName . "'s ". $varData['Html'] . '<br/>';
 								$resultVal = call_user_func($varData['Html'], $Result);
 							}
 						}

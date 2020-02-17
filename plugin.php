@@ -111,17 +111,19 @@ function formatCsvFieldAttribute($Result) {
 	$attributes = getAttrValues ($Result['id']);
 	$aCSVRow = array();
 	foreach ( $_POST['attributeIDs'] as $attributeID ) {
-		if ( isset( $attributes[$attributeID]['a_value'] ) )
-			array_push($aCSVRow, $attributes[$attributeID]['a_value']);
-		elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' ) )
-			array_push($aCSVRow, date("Y-m-d",$attributes[$attributeID]['value']));
-		else
-			array_push($aCSVRow, '');
+		$aValue = '';
+		if ( isset( $attributes[$attributeID] ) ) {
+			if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
+				$aValue = $attributes[$attributeID]['a_value'];
+			elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
+				$aValue = date("Y-m-d",$attributes[$attributeID]['value']);
+		}
+		array_push($aCSVRow, $aValue);
 	}
 	return $aCSVRow;
 }
 
-function formatCsvFieldTag($result) {
+function formatCsvFieldTag($Result) {
 	$sTemp = '';
 	foreach ( $Result['tags'] as $aTag ) {
 		$sTemp .= $aTag['tag'].' ';
@@ -219,12 +221,14 @@ function formatHtmlFieldAttribute($Result) {
 	$attributes = getAttrValues ($Result['id']);
 	$aResult = array();
 	foreach ( $_POST['attributeIDs'] as $attributeID ) {
-		if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
-			array_push($aResult, $attributes[$attributeID]['a_value']);
-		elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
-			array_push($aResult, date("Y-m-d",$attributes[$attributeID]['value']));
-		else
-			array_push($aResult, '&nbsp;');
+		$aValue = '&nbsp;';
+		if ( isset( $attributes[$attributeID] ) ) {
+			if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
+				$aValue = $attributes[$attributeID]['a_value'];
+			elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
+				$aValue = date("Y-m-d",$attributes[$attributeID]['value']);
+		}
+		array_push($aResult, $aValue);
 	}
 
 	return implode('</td><td>',$aResult);
@@ -330,6 +334,7 @@ function getCustomReportPostVars() {
 				'Html'      => 'formatHtmlFieldIP',
 			),
 			'attributeIDs' => array(
+				'Data'      => 'id',
 				'Csv'       => 'formatCsvFieldAttribute',
 				'Html'      => 'formatHtmlFieldAttribute',
 			),
