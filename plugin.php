@@ -41,8 +41,8 @@ function plugin_reports_init ()
 
 function plugin_reports_install ()
 {
-	addConfigVar('REPORTS_CSS_PATH', 'css/report', 'string', 'yes', 'no', 'no', 'Path to the CSS files of the Custom Reports plugin');
-	addConfigVar('REPORTS_JS_PATH', 'js/report', 'string', 'yes', 'no', 'no', 'Path to the Javascript files of the Custom Reports plugin');
+	addConfigVar('REPORTS_CSS_PATH', '', 'string', 'yes', 'no', 'no', 'Path to the CSS files of the Custom Reports plugin');
+	addConfigVar('REPORTS_JS_PATH', '', 'string', 'yes', 'no', 'no', 'Path to the Javascript files of the Custom Reports plugin');
 	addConfigVar('REPORTS_SHOW_MAC_FOR_SWITCHES', 'yes', 'string', 'no', 'no', 'yes', 'Show MAC addresses in Custom Switch Report' );
 	return TRUE;
 }
@@ -58,6 +58,309 @@ function plugin_reports_uninstall ()
 function plugin_reports_upgrade ()
 {
         return TRUE;
+}
+
+function formatCsvFieldType($Result) {
+	static $phys_typelist;
+	if (empty($phys_typelist))
+		$phys_typelist = readChapter (CHAP_OBJTYPE, 'o');
+	return isset( $Result['objtype_id'] ) ? $phys_typelist[$Result['objtype_id']] : '';
+}
+
+function formatCsvFieldComment($Result) {
+	return str_replace('&quot;',"'",$Result['comment']);
+}
+
+function formatCsvFieldLocation($Result) {
+	return preg_replace('/<a[^>]*>(.*)<\/a>/iU', '$1', getLocation($Result));
+}
+
+function formatCsvFieldMac($Result) {
+	$sTemp = '';
+	foreach ( getObjectPortsAndLinks($Result['id']) as $portNumber => $aPortDetails ) {
+		if ( trim($aPortDetails['l2address']) != '')
+			$sTemp .= $aPortDetails['l2address'].' ';
+	}
+	return $sTemp;
+}
+
+function formatCsvFieldIP($Result) {
+	$sTemp = '';
+	foreach ( getObjectIPv4AllocationList($Result['id']) as $key => $aDetails ) {
+		if ( function_exists('ip4_format') )
+			$key = ip4_format($key);
+
+		if ( trim($key) != '')
+			$sTemp .= $key.' ';
+	}
+
+	foreach ( getObjectIPv6AllocationList($Result['id']) as $key => $aDetails ) {
+		if ( function_exists('ip6_format') )
+			$key = ip6_format($key);
+		else
+		 	$key = new IPv6Address($key);
+
+		if ( trim($key) != '')
+			$sTemp .= $key.' ';
+	}
+
+	return $sTemp;
+}
+
+function formatCsvFieldAttribute($Result) {
+	$attributes = getAttrValues ($Result['id']);
+	$aCSVRow = array();
+	foreach ( $_POST['attributeIDs'] as $attributeID ) {
+		if ( isset( $attributes[$attributeID]['a_value'] ) )
+			array_push($aCSVRow, $attributes[$attributeID]['a_value']);
+		elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' ) )
+			array_push($aCSVRow, date("Y-m-d",$attributes[$attributeID]['value']));
+		else
+			array_push($aCSVRow, '');
+	}
+	return $aCSVRow;
+}
+
+function formatCsvFieldTag($result) {
+	$sTemp = '';
+	foreach ( $Result['tags'] as $aTag ) {
+		$sTemp .= $aTag['tag'].' ';
+	}
+
+	if ( count($Result['itags']) > 0 ) {
+		$sTemp .=  '(';
+		foreach ( $Result['itags'] as $aTag ) {
+			$sTemp .= $aTag['tag'].' ';
+		}
+		$sTemp .=  ')';
+	}
+	return $sTemp;
+}
+
+function formatCsvFieldPort($Result) {
+	$sTemp = '';
+
+	foreach ( $Result['portsLinks'] as $port ) {
+		$sTemp .= $port['name'].': '.$port['remote_object_name'];
+		if ( trim($port['cableid']) != '')
+			$sTemp .= ' Cable ID: '.$port['cableid'];
+
+		$sTemp .= ' ';
+	}
+
+	return trim($sTemp);
+}
+
+function formatCsvFieldContainer($Result) {
+	$sTemp = '';
+
+	foreach ( getObjectContainerList($Result['id']) as $key => $aDetails ) {
+		$sTemp .= trim($aDetails['container_name']).' ';
+	}
+	return trim($sTemp);
+}
+
+function formatCsvFieldChild($Result) {
+	$sTemp = '';
+
+	foreach ( getObjectChildObjectList($Result['id']) as $key => $aDetails ) {
+		$sTemp .= trim($aDetails['object_name']).' ';
+	}
+	return trim($sTemp);
+}
+
+function formatClassFieldName($Result) {
+	return 'object_' . str_replace('$','',$Result['atags'][1]['tag']);
+}
+
+function formatHtmlFieldName($Result) {
+	return '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $Result['id']) )  .'">'.$Result['name'].'</a>';
+}
+
+function formatHtmlFieldComment($Result) {
+	return makeLinksInText($Result['comment']);
+}
+
+function formatHtmlFieldLocation($Result) {
+	return getLocation($Result);
+}
+
+function formatHtmlFieldMac($Result) {
+	$aResult = '';
+	foreach ( getObjectPortsAndLinks($Result['id']) as $portNumber => $aPortDetails ) {
+		if ( trim($aPortDetails['l2address']) != '')
+			$aResult .= $aPortDetails['l2address'].'<br/>';
+	}
+	return trim($aResult);
+}
+
+function formatHtmlFieldIP($Result) {
+	$aResult = '';
+	foreach ( getObjectIPv4AllocationList($Result['id']) as $key => $aDetails ) {
+		if ( function_exists('ip4_format') )
+			$key = ip4_format($key);
+		if ( trim($key) != '')
+			$aResult .= $key . '<br/>';
+	}
+
+	foreach ( getObjectIPv6AllocationList($Result['id']) as $key => $aDetails ) {
+		if ( function_exists('ip6_format') )
+			$key = ip6_format($key);
+		else
+			$key = new IPv6Address($key);
+
+		if ( trim($key) != '')
+			$aResult .= $key . '<br/>';
+	}
+	return $aResult;
+}
+
+function formatHtmlFieldAttribute($Result) {
+	$attributes = getAttrValues ($Result['id']);
+	$aResult = array();
+	foreach ( $_POST['attributeIDs'] as $attributeID ) {
+		if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
+			array_push($aResult, $attributes[$attributeID]['a_value']);
+		elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
+			array_push($aResult, date("Y-m-d",$attributes[$attributeID]['value']));
+		else
+			array_push($aResult, '&nbsp;');
+	}
+
+	return implode('</td><td>',$aResult);
+}
+
+function formatHtmlFieldTag($Result) {
+	$aResult = '';
+	foreach ( $Result['tags'] as $aTag )
+		$aResult .= '<a href="'. makeHref ( array( 'page' => 'depot', 'tab' => 'default', 'andor' => 'and', 'cft[]' => $aTag['id']) ) .'">'.$aTag['tag'].'</a> ';
+
+	if ( count($Result['itags']) > 0 ) {
+		$aResult .= '(';
+		foreach ( $Result['itags'] as $aTag )
+			$aResult .= '<a href="'. makeHref ( array( 'page' => 'depot', 'tab' => 'default', 'andor' => 'and', 'cft[]' => $aTag['id']) ) .'">'.$aTag['tag'].'</a> ';
+
+		$aResult .= ')';
+	}
+	return $aResult;
+}
+
+function formatHtmlFieldPort($Result) {
+	$aResult = '';
+	foreach ( $Result['portsLinks'] as $port ) {
+		$aResult .= $port['name'].': ';
+		if ( $port['remote_object_name'] != 'unknown' )
+			$aResult .= formatPortLink ($port['remote_object_id'], $port['remote_object_name'], $port['remote_id'], NULL);
+		else
+			$aResult .= $port['remote_object_name'];
+
+		if ( trim($port['cableid']) != '')
+			$aResult .= ' Cable ID: '.$port['cableid'];
+
+		$aResult .= '<br/>';
+	}
+	return $aResult;
+}
+
+function formatHtmlFieldContainer($Result) {
+	$aResult = '';
+	foreach ( getObjectContainerList($Result['id']) as $key => $aDetails ) {
+		$aResult .= '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $key) )  .'">'.$aDetails['container_name'].'</a><br/>';
+	}
+	return $aResult;
+}
+
+function formatHtmlFieldChild($Result) {
+	$aResult = '';
+	foreach ( getObjectChildObjectList($Result['id']) as $key => $aDetails ) {
+		$aResult .= '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $key) )  .'">'.$aDetails['object_name'].'</a><br/>';
+	}
+	return $aResult;
+}
+
+function getCustomReportPostVars() {
+	static $postVars;
+	if (empty($postVars)) {
+		$postVars = array(
+			'sName' => array(
+				'Title'     => 'Name',
+				'Data'      => 'name',
+				'Span'      => 'formatClassFieldName',
+				'Html'      => 'formatHtmlFieldName',
+			),
+			'label' => array(
+				'Title'     => 'Label',
+			),
+			'type' => array(
+				'Title'     => 'Type',
+				'Data'      => 'objtype_id',
+				'Csv'       => 'formatCsvFieldType',
+				'Html'      => 'formatCsvFieldType',
+			),
+			'asset_no' => array(
+				'Title'     => 'Asset Tag',
+			),
+			'has_problems' => array(
+				'Title'     => 'Has Problems',
+			),
+			'comment' => array(
+				'Title'     => 'Comment',
+				'Csv'       => 'formatCsvFieldComment',
+				'Html'      => 'formatHtmlFieldComment',
+			),
+			'runs8021Q' => array(
+				'Title'     => 'Runs 8021Q',
+			),
+			'location' => array(
+				'Title'     => 'Location',
+				'Data'      => 'id',
+				'Csv'       => 'formatCsvFieldLocation',
+				'Html'      => 'formatHtmlFieldLocation',
+			),
+			'MACs' => array(
+				'Title'     => 'MACs',
+				'Data'      => 'id',
+				'Csv'       => 'formatCsvFieldMac',
+				'Html'      => 'formatHtmlFieldMac',
+			),
+			'IPs' => array(
+				'Title'     => 'IPs',
+				'Data'      => 'id',
+				'Csv'       => 'formatCsvFieldIP',
+				'Html'      => 'formatHtmlFieldIP',
+			),
+			'attributeIDs' => array(
+				'Csv'       => 'formatCsvFieldAttribute',
+				'Html'      => 'formatHtmlFieldAttribute',
+			),
+			'Tags' => array(
+				'Title'     => 'Tags',
+				'Data'      => 'tags',
+				'Csv'       => 'formatCsvFieldTag',
+				'Html'      => 'formatHtmlFieldTag',
+			),
+			'Ports' => array(
+				'Title'     => 'Ports',
+				'Data'      => 'portsLinks',
+				'Csv'       => 'formatCsvFieldPort',
+				'Html'      => 'formatHtmlFieldPort',
+			),
+			'Containers' => array(
+		   		'Title'     => 'Containers',
+				'Data'      => 'id',
+				'Csv'       => 'formatCsvFieldContainer',
+				'Html'      => 'formatHtmlFieldContainer',
+			),
+			'Childs' => array(
+				'Title'     => 'Child objects',
+				'Data'      => 'id',
+				'Csv'       => 'formatCsvFieldChild',
+				'Html'      => 'formatHtmlFieldChild',
+			),
+		);
+	}
+
+	return $postVars;
 }
 
 function renderServerReport()
@@ -160,7 +463,7 @@ function renderReport($sFilter)
 			case '{$typeid_4}':
 				$title = 'Server report';
 				$report_type = 'server';
-				array_push($aCSVRow, 'Type','Asset No.','Location','OEM S/N','HW Expire Date','OS')
+				array_push($aCSVRow, 'Type','Asset No.','Location','OEM S/N','HW Expire Date','OS');
 				break;
 
 			case '{$typeid_8}':
@@ -280,11 +583,13 @@ function renderReport($sFilter)
 
 	// Load stylesheet and jquery sicripts
 	$css_path=getConfigVar('REPORTS_CSS_PATH');
+	if (empty($css_path)) $css_path = 'reports/css';
 	$js_path=getConfigVar('REPORTS_JS_PATH');
-	addCSS ("$css_path/style.css");
-	addJS ("$js_path/jquery-latest.js");
-	addJS ("$js_path/jquery.tablesorter.js");
-	addJS ("$js_path/picnet.table.filter.min.js");
+	if (empty($js_path)) $js_path = 'reports/js';
+	addCSSInternal ("$css_path/style.css");
+	addJSInternal ("$js_path/jquery-latest.js");
+	addJSInternal ("$js_path/jquery.tablesorter.js");
+	addJSInternal ("$js_path/picnet.table.filter.min.js");
 
 	// Display the stat array
 	echo "\n<h2>$title (".$iTotal.")</h2><ul>";

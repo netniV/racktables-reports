@@ -12,6 +12,7 @@ function renderCustomReport()
 	$phys_typelist = readChapter (CHAP_OBJTYPE, 'o');
 	$attibutes     = getAttrMap();
 	$aTagList      = getTagList();
+	$aReportVar    = getCustomReportPostVars();
 	$report_type   = 'custom';
 
 	if ( ( $_SERVER['REQUEST_METHOD'] == 'POST' ) && ( isset( $_POST['csv'] ) ) ) {
@@ -24,59 +25,21 @@ function renderCustomReport()
 		$outstream = fopen("php://output", "w");
 
 		$aResult = getResult($_POST); // Get Result
-		$_POST['name'] = validateColums($_POST); // Fix empty colums
+		$_POST['name'] = validateColumns($_POST); // Fix empty Columns
 
 		$csvDelimiter = (isset( $_POST['csvDelimiter'] )) ? $_POST['csvDelimiter'] : ',';
 
 		/* Create Header */
 		$aCSVRow = array();
-
-		if ( isset( $_POST['sName'] ) && $_POST['sName'] )
-			array_push($aCSVRow, "Name");
-
-		if ( isset( $_POST['label'] ) )
-			array_push($aCSVRow, "Label");
-
-		if ( isset( $_POST['type'] ) )
-			array_push($aCSVRow, "Type");
-
-		if ( isset( $_POST['asset_no'] ) )
-			array_push($aCSVRow, "Asset Tag");
-
-		if ( isset( $_POST['has_problems'] ) )
-			array_push($aCSVRow, "Has Problems");
-
-		if ( isset( $_POST['comment'] ) )
-			array_push($aCSVRow, "Comment");
-
-		if ( isset( $_POST['runs8021Q'] ) )
-			array_push($aCSVRow, "Runs 8021Q");
-
-		if ( isset( $_POST['location'] ) )
-			array_push($aCSVRow, "Location");
-
-		if ( isset( $_POST['MACs'] ) )
-			array_push($aCSVRow, "MACs");
-
-		if ( isset( $_POST['IPs'] ) )
-			array_push($aCSVRow, "IPs");
-
-		if ( isset( $_POST['attributeIDs'] ) ) {
-			foreach ( $_POST['attributeIDs'] as $attributeID )
-				array_push($aCSVRow, $attibutes[$attributeID]['name']);
+		foreach ($aReportVar as $postName => $postData) {
+			if ( isset( $_POST[$postName] ) && $_POST[$postName] )
+				if ($postName == 'attributeIDs') {
+					foreach ( $_POST['attributeIDs'] as $attributeID )
+						array_push($aCSVRow, $attibutes[$attributeID]['name']);
+				} else {
+					array_push($aCSVRow, $postData["Title"]);
+				}
 		}
-
-		if ( isset( $_POST['Tags'] ) )
-			array_push($aCSVRow, "Tags");
-
-		if ( isset( $_POST['Ports'] ) )
-			array_push($aCSVRow, "Ports");
-
-		if ( isset( $_POST['Containers'] ) )
-	   		array_push($aCSVRow, "Containers");
-
-		if ( isset( $_POST['Childs'] ) )
-			array_push($aCSVRow, "Child objects");
 
 		fputcsv( $outstream, $aCSVRow, $csvDelimiter );
 
@@ -84,120 +47,26 @@ function renderCustomReport()
 		foreach ( $aResult as $Result ) {
 			$aCSVRow = array();
 
-			if ( isset( $_POST['sName'] ) )
-				array_push($aCSVRow, $Result['name']);
-
-			if ( isset( $_POST['label'] ) )
-				array_push($aCSVRow, $Result['label']);
-
-			if ( isset( $_POST['type'] ) )
-				array_push($aCSVRow, $phys_typelist[$Result['objtype_id']]);
-
-			if ( isset( $_POST['asset_no'] ) )
-				array_push($aCSVRow, $Result['asset_no']);
-
-			if ( isset( $_POST['has_problems'] ) )
-				array_push($aCSVRow, $Result['has_problems']);
-
-			if ( isset( $_POST['comment'] ) )
-				array_push($aCSVRow, str_replace('&quot;',"'",$Result['comment']));
-
-			if ( isset( $_POST['runs8021Q'] ) )
-				array_push($aCSVRow, $Result['runs8021Q']);
-
-			if ( isset( $_POST['location'] ) )
-				array_push($aCSVRow, preg_replace('/<a[^>]*>(.*)<\/a>/iU', '$1', getLocation($Result)));
-
-			if ( isset( $_POST['MACs'] ) ) {
-				$sTemp = '';
-				foreach ( getObjectPortsAndLinks($Result['id']) as $portNumber => $aPortDetails ) {
-					if ( trim($aPortDetails['l2address']) != '')
-						$sTemp .= $aPortDetails['l2address'].' ';
-				}
-				array_push($aCSVRow, $sTemp);
-			}
-
-			if ( isset( $_POST['IPs'] ) ) {
-				$sTemp = '';
-				foreach ( getObjectIPv4AllocationList($Result['id']) as $key => $aDetails ) {
-					if ( function_exists('ip4_format') )
-						$key = ip4_format($key);
-					if ( trim($key) != '')
-						$sTemp .= $key.' ';
-
-				}
-				foreach ( getObjectIPv6AllocationList($Result['id']) as $key => $aDetails ) {
-					if ( function_exists('ip6_format') )
-						$key = ip6_format($key);
-					else
-					  $key = new IPv6Address($key);
-					if ( trim($key) != '')
-						$sTemp .= $key.' ';
-				}
-				array_push($aCSVRow, $sTemp);
-			}
-
-			if ( isset( $_POST['attributeIDs'] ) ) {
-				$attributes = getAttrValues ($Result['id']);
-				foreach ( $_POST['attributeIDs'] as $attributeID ) {
-					if ( isset( $attributes[$attributeID]['a_value'] ) )
-						array_push($aCSVRow,$attributes[$attributeID]['a_value']);
-					elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
-						array_push($aCSVRow,date("Y-m-d",$attributes[$attributeID]['value']));
-					else
-					 array_push($aCSVRow,'');
-				}
-			}
-
-			if ( isset( $_POST['Tags'] ) ) {
-				$sTemp = '';
-				foreach ( $Result['tags'] as $aTag ) {
-					$sTemp .= $aTag['tag'].' ';
-				}
-				if ( count($Result['itags']) > 0 ) {
-					$sTemp .=  '(';
-					foreach ( $Result['itags'] as $aTag ) {
-						$sTemp .= $aTag['tag'].' ';
+			foreach ($aReportVar as $postName => $postData) {
+				if ( isset( $_POST[$postName] ) ) {
+					$postField = $postName;
+					if ( isset( $postData['Data'] ) ) {
+						$postField = $postData['Data'];
 					}
-					$sTemp .=  ')';
+
+					if (isset($postData['Csv'])) {
+						$resultVal = call_user_func($postData['Csv'],$Result);
+					} else {
+						$resultVal = $Result[$postField];
+					}
+
+					if (is_array($resultVal)) {
+						foreach ($resultVal as $tempVal)
+							array_push($aCSVRow, $tempVal);
+					} else {
+						array_push($aCSVRow, $resultVal);
+					}
 				}
-				array_push($aCSVRow, $sTemp);
-			}
-
-			if ( isset( $_POST['Ports'] ) ) {
-				$sTemp = '';
-
-				foreach ( $Result['portsLinks'] as $port ) {
-					$sTemp .= $port['name'].': '.$port['remote_object_name'];
-					if ( trim($port['cableid']) != '')
-						$sTemp .= ' Cable ID: '.$port['cableid'];
-					$sTemp .= ' ';
-				}
-				$sTemp = trim($sTemp);
-
-				array_push($aCSVRow, $sTemp);
-			}
-
-			if ( isset( $_POST['Containers'] ) ) {
-				$sTemp = '';
-
-				foreach ( getObjectContainerList($Result['id']) as $key => $aDetails ) {
-					$sTemp .= trim($aDetails['container_name']).' ';
-				}
-				$sTemp = trim($sTemp);
-
-				array_push($aCSVRow, $sTemp);
-			}
-
-			if ( isset( $_POST['Childs'] ) ) {
-				$sTemp = '';
-
-				foreach ( getObjectChildObjectList($Result['id']) as $key => $aDetails ) {
-					$sTemp .= trim($aDetails['object_name']).' ';
-				}
-				$sTemp = trim($sTemp);
-
-				array_push($aCSVRow, $sTemp);
 			}
 
 			fputcsv( $outstream, $aCSVRow, $csvDelimiter );
@@ -213,19 +82,23 @@ function renderCustomReport()
 
 	// Load stylesheet and jquery scripts
 	$css_path=getConfigVar('REPORTS_CSS_PATH');
+	if (empty($css_path)) $css_path = 'reports/css';
+
 	$js_path=getConfigVar('REPORTS_JS_PATH');
-	addCSS ("$css_path/style.css");
-	addJS ("$js_path/saveFormValues.js");
-	addJS ("$js_path/jquery-latest.js");
-	addJS ("$js_path/jquery.tablesorter.js");
-	addJS ("$js_path/picnet.table.filter.min.js");
+	if (empty($js_path)) $js_path = 'reports/js';
+
+	addCSSInternal ("$css_path/style.css");
+	addJSInternal ("$js_path/saveFormValues.js");
+	addJSInternal ("$js_path/jquery-latest.js");
+	addJSInternal ("$js_path/jquery.tablesorter.js");
+	addJSInternal ("$js_path/picnet.table.filter.min.js");
 
 	if ( $_SERVER['REQUEST_METHOD'] == 'POST' )
 		echo '<a href="#" class="show_hide">Show/hide search form</a><br/><br/>';
 
 	echo '
-      <div class="searchForm">';
-        <form method="post" name="searchForm">';
+      <div class="searchForm">
+        <form method="post" name="searchForm">
           <table class="searchTable">
             <tr>
               <th>Object Type</th>
@@ -234,9 +107,7 @@ function renderCustomReport()
               <th>Tags</th>
               <th>Misc</th>
             </tr>
-            <tr>';
-
-	echo '
+            <tr>
               <td valign="top">
                 <table class="searchTable">
 ';
@@ -254,6 +125,7 @@ function renderCustomReport()
 		echo '	 > '.$sName.' </td></tr>' . PHP_EOL;
 		$i++;
 	}
+
 	echo '
 	            </table>
               </td>
@@ -292,6 +164,7 @@ function renderCustomReport()
 		echo '> '.$aRow['name'].'</td></tr>' . PHP_EOL;
 		$i++;
 	}
+
 	echo '
                 </table>
               </td>
@@ -352,7 +225,7 @@ function renderCustomReport()
 	if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
 
 		$aResult = getResult($_POST); // Get Result
-		$_POST['sName'] = validateColums($_POST); // Fix empty colums
+		$_POST['sName'] = validateColumns($_POST); // Fix empty Columns
 
 		if ( count($aResult) > 0) {
 			echo '
@@ -361,249 +234,79 @@ function renderCustomReport()
           <tr>
 ';
 
-		if ( isset( $_POST['sName'] )  && $_POST['sName'] )
-			echo '<th>Name</th>';
+			foreach ($aReportVar as $varName => $varData) {
+				if ( isset( $_POST[$varName] ) ) {
+					if ( $varName == 'attributeIDs' ) {
+						foreach ( $_POST['attributeIDs'] as $attributeID )
+							echo '<th>'.$attibutes[$attributeID]['name'].'</th>';
+					} else {
+						echo '<th>' . $varData['Title'] . '</th>';
+					}
+				}
+			}
 
-		if ( isset( $_POST['label'] ) )
-			echo '<th>Label</th>';
-
-		if ( isset( $_POST['type'] ) )
-			echo '<th>Type</th>';
-
-		if ( isset( $_POST['asset_no'] ) )
-			echo '<th>Asset Tag</th>';
-
-		if ( isset( $_POST['has_problems'] ) )
-			echo '<th>Has Problems</th>';
-
-		if ( isset( $_POST['comment'] ) )
-			echo '<th>Comment</th>';
-
-		if ( isset( $_POST['runs8021Q'] ) )
-			echo '<th>Runs 8021Q</th>';
-
-		if ( isset( $_POST['location'] ) )
-			echo '<th>Location</th>';
-
-		if ( isset( $_POST['MACs'] ) )
-			echo '<th>MAC(s)</th>';
-
-		if ( isset( $_POST['IPs'] ) )
-			echo '<th>IP(s)</th>';
-
-		if ( isset( $_POST['attributeIDs'] ) ) {
-			foreach ( $_POST['attributeIDs'] as $attributeID )
-				echo '<th>'.$attibutes[$attributeID]['name'].'</th>';
-		}
-
-		if ( isset( $_POST['Tags'] ) ) {
-			echo '<th>Tags</th>';
-		}
-
-		if ( isset ($_POST['Ports']) ) {
-			echo '<th>Ports</th>';
-		}
-
-		if ( isset( $_POST['Containers'] ) ) {
-			echo '<th>Containers</th>';
-		}
-
-		if ( isset( $_POST['Childs'] ) ) {
-			echo '<th>Child objects</th>';
-		}
-
-		echo '
+			echo '
           </tr>
         </thead>
         <tbody>
 ';
 
-		foreach ( $aResult as $Result ) {
-
-			echo '
+			foreach ( $aResult as $Result ) {
+				echo '
           <tr>
 ';
+				foreach ( $aReportVar as $varName => $varData) {
+					if ( isset( $_POST[$varName] ) ) {
+						echo '<td>';
 
-			if ( isset( $_POST['sName'] ) ) {
-				echo '
-            <td>
-              <span class="object_'.str_replace('$','',$Result['atags'][1]['tag']).'">';
+						$spanClass = '';
+						if ( isset( $varData['Span'] ) ) {
+							$spanName = call_user_func($varData['Span'], $Result);
+						}
 
-				if ( isset( $Result['name'] ) )
-					echo '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $Result['id']) )  .'">'.$Result['name'].'</a>';
-				else
-					echo '&nbsp;';
+						if (!empty($spanClass)) {
+							echo '<span class="'.$spanClass.'">';
+						}
 
-				echo '
-              </span>
-            </td>';
-			}
+						$varField = $varName;
+						if ( isset( $varData['Data'] ) ) {
+							$varField = $varData['Data'];
+						}
 
-			if ( isset( $_POST['label'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['label'] ) )
-					echo $Result['label'];
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
+						$resultVal = ''; //$varName . ': ' . json_encode($varData);
+						if ( isset( $Result[$varField] ) ) {
+							$resultVal = $Result[$varField];
+							if ( isset( $varData['Html'] ) ) {
+//								echo 'Calling ' . $varName . "'s ". $varData['Html'] . '<br/>';
+								$resultVal = call_user_func($varData['Html'], $Result);
+							}
+						}
 
-			if ( isset( $_POST['type'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['objtype_id'] ) )
-					echo $phys_typelist[$Result['objtype_id']];
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
+						if (empty($resultVal)) {
+							$resultVal = '&nbsp;';
+						}
+						echo $resultVal;
 
-			if ( isset( $_POST['asset_no'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['asset_no'] ) )
-					echo $Result['asset_no'];
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
+						if (!empty($spanClass)) {
+							echo '</span>';
+						}
 
-			if ( isset( $_POST['has_problems'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['has_problems'] ) )
-					echo $Result['has_problems'];
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
-
-			if ( isset( $_POST['comment'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['comment'] ) )
-					echo makeLinksInText($Result['comment']);
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
-
-			if ( isset( $_POST['runs8021Q'] ) ) {
-				echo '<td>';
-				if ( isset( $Result['runs8021Q'] ) )
-					echo $Result['runs8021Q'];
-				else
-					echo '&nbsp;';
-				echo '</td>';
-			}
-
-			if ( isset( $_POST['location'] ) ) {
-				echo '<td>';
-				echo getLocation($Result);
-				echo '</td>';
-			}
-
-			if ( isset( $_POST['MACs'] ) ) {
-				echo '<td>';
-				foreach ( getObjectPortsAndLinks($Result['id']) as $portNumber => $aPortDetails ) {
-					if ( trim($aPortDetails['l2address']) != '')
-						echo $aPortDetails['l2address'].'<br/>';
-				}
-				echo '</td>';
-			}
-
-			if ( isset( $_POST['IPs'] ) ) {
-				echo '<td>';
-				foreach ( getObjectIPv4AllocationList($Result['id']) as $key => $aDetails ) {
-					if ( function_exists('ip4_format') )
-						$key = ip4_format($key);
-					if ( trim($key) != '')
-						echo $key . '<br/>';
+						echo '</td>';
+					}
 				}
 
-				foreach ( getObjectIPv6AllocationList($Result['id']) as $key => $aDetails ) {
-					if ( function_exists('ip6_format') )
-						$key = ip6_format($key);
-					else
-						$key = new IPv6Address($key);
+//mjv				echo '<td><pre>'.htmlspecialchars(json_encode($Result,JSON_PRETTY_PRINT)) . '</pre></td>';
+				echo '</tr>';
 
-					if ( trim($key) != '')
-						echo $key . '<br/>';
-				}
-				echo '</td>';
 			}
 
-			if ( isset( $_POST['attributeIDs'] ) ) {
-				$attributes = getAttrValues ($Result['id']);
-				foreach ( $_POST['attributeIDs'] as $attributeID ) {
-					echo '<td>';
-					if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
-						echo $attributes[$attributeID]['a_value'];
-					elseif ( ($attributes[$attributeID]['value'] != '') && ( $attributes[$attributeID]['type'] == 'date' )   )
-						echo date("Y-m-d",$attributes[$attributeID]['value']);
-					else
-						echo '&nbsp;';
-				}
-			}
-
-			if ( isset( $_POST['Tags'] ) ) {
-				echo '<td>';
-				foreach ( $Result['tags'] as $aTag )
-					echo '<a href="'. makeHref ( array( 'page' => 'depot', 'tab' => 'default', 'andor' => 'and', 'cft[]' => $aTag['id']) ) .'">'.$aTag['tag'].'</a> ';
-
-				if ( count($Result['itags']) > 0 ) {
-					echo '(';
-					foreach ( $Result['itags'] as $aTag )
-						echo '<a href="'. makeHref ( array( 'page' => 'depot', 'tab' => 'default', 'andor' => 'and', 'cft[]' => $aTag['id']) ) .'">'.$aTag['tag'].'</a> ';
-
-					echo ')';
-				}
-				echo '</td>';
-			}
-
-			if ( isset ($_POST['Ports']) ) {
-				echo '<td>';
-
-				foreach ( $Result['portsLinks'] as $port ) {
-				   echo $port['name'].': ';
-				   if ( $port['remote_object_name'] != 'unknown' )
-					   echo formatPortLink ($port['remote_object_id'], $port['remote_object_name'], $port['remote_id'], NULL);
-				   else
-					echo $port['remote_object_name'];
-				   if ( trim($port['cableid']) != '')
-					   echo ' Cable ID: '.$port['cableid'];
-				   echo '<br/>';
-				}
-
-				echo '</td>';
-			}
-
-			if ( isset ($_POST['Containers']) ) {
-				echo '<td>';
-
-				foreach ( getObjectContainerList($Result['id']) as $key => $aDetails ) {
-					echo '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $key) )  .'">'.$aDetails['container_name'].'</a><br/>';
-				}
-
-				echo '</td>';
-			}
-
-			if ( isset ($_POST['Childs']) ) {
-				echo '<td>';
-
-				foreach ( getObjectChildObjectList($Result['id']) as $key => $aDetails ) {
-					echo '<a href="'. makeHref ( array( 'page' => 'object', 'object_id' => $key) )  .'">'.$aDetails['object_name'].'</a><br/>';
-				}
-
-				echo '</td>';
-			}
-
-			echo '</tr>';
-
-		}
-
-		echo '
+			echo '
         </tbody>
       </table>
       <script type="text/javascript">$(".searchForm").hide();</script>';
-     } else {
-        echo '<br/><br/><div align="center" style="font-size:10pt;"><i>No items found !!!</i></div><br/>';
+		} else {
+			echo '<br/><br/><div align="center" style="font-size:10pt;"><i>No items found !!!</i></div><br/>';
+		}
      }
 
      echo '<script type="text/javascript">
@@ -625,8 +328,6 @@ function renderCustomReport()
                  }
                  );
             </script>';
-    }
-
 }
 
 /**
@@ -679,7 +380,7 @@ function getResult ( $post ) {
 
 	// Add tags
 	$aTemp = array();
-	foreach ( $aResult as $Result) {
+	foreach ( $aResult as $ID => $Result) {
 		$Result['tags']  = loadEntityTags( 'object', $Result['id'] );
 		$Result['itags'] = getImplicitTags( $Result['tags'] );
 
@@ -690,7 +391,7 @@ function getResult ( $post ) {
 	// Search / Filter by name
 	if ( isset ($post['name_preg']) && ($post['name_preg'] != '') ) {
 		$aTemp = array();
-		foreach ( $aResult as $Result ) {
+		foreach ( $aResult as $ID => $Result ) {
 			 if ( preg_match ( '/'.$post['name_preg'].'/' , $Result['name']) )
 				array_push($aTemp, $Result);
 		}
@@ -700,7 +401,7 @@ function getResult ( $post ) {
 	// Search / Filter by tag
 	if ( isset ($post['tag_preg']) && ($post['tag_preg'] != '') ) {
 		$aTemp = array();
-		foreach ( $aResult as $Result ) {
+		foreach ( $aResult as $ID => $Result ) {
 			if ( preg_match ( '/'.$post['tag_preg'].'/' , $Result['asset_no']) )
 				array_push($aTemp, $Result);
 		}
@@ -710,7 +411,7 @@ function getResult ( $post ) {
 	// Search / Filter by comment
 	if ( isset ($post['comment_preg']) && ($post['comment_preg'] != '') ) {
 		$aTemp = array();
-		foreach ( $aResult as $Result ) {
+		foreach ( $aResult as $ID => $Result ) {
 			if ( preg_match ( '/'.$post['comment_preg'].'/' , $Result['comment']) )
 				array_push($aTemp, $Result);
 		}
@@ -743,7 +444,7 @@ function getResult ( $post ) {
 	if ( isset ($post['Ports']) ) {
 		$aTemp = array();
 
-		foreach ( $aResult as $Result ) {
+		foreach ( $aResult as $ID => $Result ) {
 
 			$Result['portsLinks'] = getObjectPortsAndLinks ($Result['id']);
 
@@ -766,7 +467,7 @@ function getResult ( $post ) {
 }
 
 /**
- * validateColums Function
+ * validateColumns Function
  *
  * If user doesn't select any colum to display this function preselect the name colum
  * to display the results
@@ -774,7 +475,7 @@ function getResult ( $post ) {
  * @param array $_POST
  * @return bool display
  */
-function validateColums($POST) {
+function validateColumns($POST) {
 	if (isset( $POST['sName'] ) )
 		return true;
 
