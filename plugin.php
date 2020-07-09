@@ -642,7 +642,7 @@ function renderIncludes() {
 	addCSSExternal ("https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css");
 	addCSSInternal ("$css_path/style.css");
 	addJSInternal ("$js_path/jquery-latest.js");
-	addJSInternal ("$js_path/jquery-ui-1.12.1/jquery-ui.min.js");
+	addJSInternal ("$js_path/jquery-ui-1.12.1.min.js");
 	addJSInternal ("$js_path/jquery.tablesorter.js");
 	addJSInternal ("$js_path/picnet.table.filter.min.js");
 	addJSInternal ("$js_path/saveFormValues.js");

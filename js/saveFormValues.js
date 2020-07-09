@@ -155,6 +155,7 @@ function recoverInputsJSON( formRef, oStr, oAndPass, oTypes, oNames ) {
 			var oExclude = oTypes % 2;
 		}
 
+		formRef.reset();
 		for( var x = 0, y = 0; formRef.elements[x]; x++ ) {
 			if( formRef.elements[x].type ) {
 				var oE = formRef.elements[x]; var oT = oE.type.toLowerCase();
