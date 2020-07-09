@@ -12,10 +12,10 @@ table.tablesorter thead tr th, table.tablesorter tfoot tr th {
 	background-color: #3C78B5;
 	/*border: 1px solid #FFF;*/
 	font-size: 11pt;
-    font-weight:bold;
+	font-weight:bold;
 	padding: 4px;
-    color:white;
-    border:1px solid #3C78B5;
+	color:white;
+	border:1px solid #3C78B5;
 }
 table.tablesorter thead tr .header {
 	background-image: url(?module=chrome&uri=pix/report/bg.gif);
@@ -28,8 +28,8 @@ table.tablesorter tbody td {
 	padding: 2px;
 	background-color: #E8E8E8;
 	vertical-align: top;
-    font-weight:bold;
-    
+	font-weight:bold;
+	
 }
 table.tablesorter tbody tr.odd td {
 	background-color:#D0D0D0;
@@ -41,7 +41,7 @@ table.tablesorter thead tr .headerSortDown {
 	background-image: url(?module=chrome&uri=pix/report/desc.gif);
 }
 table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
-    background-color: #468DD5;
+	background-color: #468DD5;
 }
 
 /* Custom Report */
@@ -60,8 +60,8 @@ table.searchTable tr.odd {
 
 table.searchTable th {
 	font-size: 8pt;
-    padding : 2px;
-    text-decoration: underline;
+	padding : 2px;
+	text-decoration: underline;
 }
 
 table.searchTable td {
@@ -74,7 +74,14 @@ table.searchTable td table {
 }
 
 .searchForm {
+	border: 1px solid black;
+	color: white;
+	background-color: rgb(40,109,169);
+}
 
+.searchTitle {
+	padding-left: 15px;
+	color: white;
 }
  
 .show_hide {
@@ -92,20 +99,110 @@ table.tablesorter tbody tr span.object_typeid_4 {
 /* Example set text color of object type */
 /*
 table.tablesorter tbody tr span.object_typeid_4 a {
-    color:red;	
+	color:red;	
 }
 */
 
 /* Switches */
 table.tablesorter tbody tr span.object_typeid_8 { 
-    background-image: url(?module=chrome&uri=pix/report/network.png);
-    background-repeat: no-repeat;
-    padding-left:20px;
+	background-image: url(?module=chrome&uri=pix/report/network.png);
+	background-repeat: no-repeat;
+	padding-left:20px;
 }
 
 /* VMs */
 table.tablesorter tbody tr span.object_typeid_1504 { 
-    background-image: url(?module=chrome&uri=pix/report/vm.png);
-    background-repeat: no-repeat;
-    padding-left:20px;
+	background-image: url(?module=chrome&uri=pix/report/vm.png);
+	background-repeat: no-repeat;
+	padding-left:20px;
+}
+
+.searchTable {
+	display: flex;
+	flex-direction: row;
+	flex-flow: wrap;
+}
+
+.searchRow, .searchTitle {
+	flex: 10%;
+	flex-flow: wrap;
+	justify-content: space-evenly;
+	align-items: center;
+}
+
+.searchRow {
+	color: black;
+	border-left: 1px solid rgb(100,100,100);
+	border-right: 1px solid rgb(100,100,100);
+}
+
+.searchItem {
+	display: flex;
+	align-items: center;
+}
+
+.searchItem:nth-of-type(odd), .searchReportItem:nth-of-type(odd) {
+	background-color: rgb(240, 240, 240);
+}
+
+.searchItem:nth-of-type(even), .searchReportItem:nth-of-type(even) {
+	background-color: rgb(255, 255, 255);
+}
+
+.searchItem:hover {
+	color: rgb(100,100,254);
+}
+
+.searchCheck {
+	width: 30px;
+	flex-grow; 0;
+}
+
+.searchLabel, .searchButton, .searchText {
+	flex: 50%;
+}
+
+.searchReport {
+	display: flex;
+}
+
+.searchReportItem {
+	flex: 25%;
+	display: flex;
+	align-items: center;
+	padding: 5px 5px;
+}
+
+.searchReportItem:hover {
+	color: rgb(0,0,200);
+}
+
+.searchReportIcon {
+	margin-left: 5px;
+	padding: 5px;
+	border: 1px solid black;
+	flex-grow: 0;
+}
+
+.searchReportIcon:hover {
+	background-color: rgb(0,0,200);
+	color: white;
+}
+
+.searchReportName {
+	padding: 0px 5px;
+	font-size: 1.25em;
+	flex-grow: 1;
+	align-items: center;
+}
+
+#dialog-message {
+	display: none;
+}
+
+
+@media only screen and (max-width: 600px) {
+	.searchRow, .searchTitle {
+		flex: 50%;
+	}
 }

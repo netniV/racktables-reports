@@ -9,13 +9,16 @@
 require_once "reportExtensionLib.php";
 require_once "custom-report.php";
 
+global $ajaxhandler;
+$ajaxhandler['customreports'] = 'handleCustomReportsAjax';
+
 function plugin_reports_info ()
 {
         return array
         (
                 'name' => 'reports',
                 'longname' => 'Custom Reports',
-                'version' => '0.5.0',
+                'version' => '1.0.0',
                 'home_url' => 'https://github.com/netniv/racktables-reports'
         );
 }
@@ -34,13 +37,38 @@ function plugin_reports_init ()
 	$tabhandler['reports']['vm'] = 'renderVMReport';
 
 	registerTabHandler('reports', 'custom', 'renderCustomReport');
-        registerTabHandler('reports', 'server', 'renderServerReport');
+	registerTabHandler('reports', 'server', 'renderServerReport');
 	registerTabHandler('reports', 'switches', 'renderSwitchReport');
 	registerTabHandler('reports', 'vm', 'renderVMReport');
+
+	registerOpHandler ('reports', 'custom', 'load', 'loadCustomReport');
+	registerOpHandler ('reports', 'custom', 'save', 'saveCustomReport');
+	registerOpHandler ('reports', 'custom', 'delete', 'deleteCustomReport');
+	registerOpHandler ('reports', 'custom', 'share', 'shareCustomReport');
+	registerOpHandler ('reports', 'custom', 'unshare', 'unshareCustomReport');
+
+	define('CUSTOMREPORTS_CREATE_TABLE',"
+CREATE TABLE IF NOT EXISTS `CustomReports` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` char(64) DEFAULT NULL,
+  `shared` enum('yes','no') NOT NULL default 'no',
+  `created_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `data` text DEFAULT NULL,
+  `user_name` varchar(24) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `name` (`name`),
+  KEY `shared` (`shared`, `name`)
+) ENGINE=InnoDB
+");
+
 }
 
 function plugin_reports_install ()
 {
+	global $dbxlink;
+
+	$dblink->query (CUSTOMREPORTS_CREATE_TABLE);
+
 	addConfigVar('REPORTS_CSS_PATH', '', 'string', 'yes', 'no', 'no', 'Path to the CSS files of the Custom Reports plugin');
 	addConfigVar('REPORTS_JS_PATH', '', 'string', 'yes', 'no', 'no', 'Path to the Javascript files of the Custom Reports plugin');
 	addConfigVar('REPORTS_SHOW_MAC_FOR_SWITCHES', 'yes', 'string', 'no', 'no', 'yes', 'Show MAC addresses in Custom Switch Report' );
@@ -49,6 +77,10 @@ function plugin_reports_install ()
 
 function plugin_reports_uninstall ()
 {
+	global $dbxlink;
+
+	$dbxlink->query('DROP TABLE `CustomReports`');
+
 	deleteConfigVar('REPORTS_CSS_PATH');
 	deleteConfigVar('REPORTS_JS_PATH');
 	deleteConfigVar('REPORTS_SHOW_MAC_FOR_SWITCHES');
@@ -57,7 +89,220 @@ function plugin_reports_uninstall ()
 
 function plugin_reports_upgrade ()
 {
-        return TRUE;
+	$db_info = getPLugin('reports');
+	$v1 = $db_info['db_version'];
+	$code_info = plugin_reports_info();
+	$v2 = $code_info['version'];
+
+	if ($v1 != $v2) {
+		$versionhistory = array
+		(
+			'0.4.1',
+			'0.5.0',
+			'1.0.0',
+		);
+
+		$skip = TRUE;
+		$path = NULL;
+
+		foreach ($versionhistory as $vh)
+		{
+			if ($skip && ($vh == $v1)) {
+				$skip = FALSE;
+				$path = array();
+				continue;
+			}
+
+			if ($skip) continue;
+
+			$path[] = $vh;
+			if ($vh == $v2) break;
+		}
+
+		if ($path == NULL || !count($path)) {
+			throw new RackTablesError ('Unable to determine upgrade path', RackTablesError::INTERNAL);
+		}
+
+		// build a list of queries to execute
+		$queries = array();
+		foreach ($path as $v)
+		{
+			switch ($v)
+			{
+				case '0.4.1':
+				case '0.5.0':
+					break;
+
+				case '1.0.0':
+					$queries[] = CUSTOMREPORTS_CREATE_TABLE;
+					break;
+
+				default:
+					throw new RackTablesError("Preparing to upgrade to $v failed", RackTablesError::INTERNAL);
+			}
+		}
+		$queries[] = "UPDATE Plugin SET version = '$v' WHERE name = 'reports'";
+
+		// execute the queries
+		global $dbxlink;
+		foreach ($queries as $q)
+		{
+			try
+			{
+				$result = $dbxlink->query ($q);
+			}
+			catch (PDOException $e)
+			{
+				$errorInfo = $dbxlink->errorInfo();
+				throw new RackTablesError ("Query: ${errorInfo[2]}", RackTablesError::INTERNAL);
+			}
+		}
+	}
+	return TRUE;
+}
+
+function handleCustomReportsAjax() {
+	$result  = '';
+	$error   = '';
+	$reports = '';
+	try {
+		$funcmap = array(
+			'save' => 'saveCustomReport',
+			'load' => 'loadCustomReport',
+			'delete' => 'deleteCustomReport',
+			'share'  => 'shareCustomReport',
+		);
+
+		assertPermission ('object', 'reports', 'custom');
+		$result = $funcmap[$_REQUEST['op']] ();
+	} catch (Exception $e) {
+		$this_error = 'CUSTOM-REPORTS[' . $_REQUEST['op'] .'] ' . $e->getCode() . ' -- ' . $e->getMessage();
+		error_log($error . ' -- ' . $e->getTraceAsString());
+		$error += $this_error + '\n';
+	}
+
+	try {
+		$reports = renderStoredCustomReports(false);
+	} catch (Exception $e) {
+		$this_error = 'CUSTOM-REPORTS-RENDER[' . $_REQUEST['op'] .'] ' . $e->getCode() . ' -- ' . $e->getMessage();
+		error_log($error . ' -- ' . $e->getTraceAsString());
+		$error += $this_error + '\n';
+	}
+
+	$jo = [ 'status' => empty($error)?'OK':'ERROR', 'data' => $result, 'reports' => $reports ];
+	$js = json_encode($jo);
+	error_log('CUSTOM[' . $_REQUEST['op'] . '] Result: ' . $js);
+	echo $js;
+}
+
+function saveCustomReport() {
+	return customReportSave
+	(
+		genericAssertion ('name', 'string0'),
+		genericAssertion ('data', 'array')
+	);
+}
+
+function customReportSave($name, $data) {
+	global $remote_username;
+	$old_data = customReportLoad('',$name);
+	$new_data = is_string($data) ? $data : json_encode($data);
+	if (!empty($old_data)) {
+		$result = usePreparedUpdateBlade
+		(
+			'CustomReports',
+			array('name' => $name, 'data' => $new_data),
+			array('name' => $name)
+		);
+	} else {
+		$result = usePreparedInsertBlade
+		(
+			'CustomReports',
+			array('name' => $name, 'data' => $new_data, 'shared' => 'no', 'user_name' => $remote_username)
+		);
+	}
+
+	error_log('customReportSave($name): ' . json_encode($result));
+	return $result;
+}
+
+function loadCustomReport() {
+	return customReportLoad
+	(
+		genericAssertion ('id', 'uint0')
+	);
+}
+
+function customReportLoad($id,$name='') {
+	if (!empty($name)) {
+		$result = usePreparedSelectBlade
+		(
+			'SELECT * FROM `CustomReports` WHERE `name` = ?',
+			array($name)
+		);
+	} else {
+		$result = usePreparedSelectBlade
+		(
+			'SELECT * FROM `CustomReports` WHERE `id` = ?',
+			array($id)
+		);
+	}
+
+	return $result->fetch (PDO::FETCH_ASSOC);
+}
+
+function deleteCustomReport() {
+	return customReportDelete
+	(
+		genericAssertion ('id', 'uint0')
+	);
+}
+
+function customReportDelete($id) {
+	global $remote_username;
+
+	$result = usePreparedDeleteBlade
+	(
+		'CustomReports',
+		array('id' => $id, 'user_name' => $remote_username)
+	);
+
+	return $result;
+}
+
+function shareCustomReport() {
+	return customReportShared
+	(
+		genericAssertion ('id', 'uint0'),
+		genericAssertion ('shared', 'enum/yesno')
+	);
+}
+
+function customReportShared($id, $shared) {
+	global $remote_username;
+
+	$result = usePreparedUpdateBlade
+	(
+		'CustomReports',
+		array('shared' => $shared),
+		array('id' => $id, 'user_name' => $remote_username)
+	);
+
+	return $result;
+}
+
+function getCustomReports($all = false) {
+	global $remote_username;
+
+	$where = ($all) ? '' : ' WHERE user_name = ? OR shared = "yes"';
+	$params = ($all) ? array() : array($remote_username);
+	$result = usePreparedSelectBlade
+	(
+		'SELECT * FROM `CustomReports`' . $where,
+		$params
+	);
+
+	return $result->fetchAll (PDO::FETCH_ASSOC);
 }
 
 function formatCsvFieldType($Result) {
@@ -386,6 +631,23 @@ function renderVMReport()
 	renderReport($filter);
 }
 
+function renderIncludes() {
+	// Load stylesheet and jquery scripts
+	$css_path=getConfigVar('REPORTS_CSS_PATH');
+	if (empty($css_path)) $css_path = 'reports/css';
+
+	$js_path=getConfigVar('REPORTS_JS_PATH');
+	if (empty($js_path)) $js_path = 'reports/js';
+
+	addCSSExternal ("https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css");
+	addCSSInternal ("$css_path/style.css");
+	addJSInternal ("$js_path/jquery-latest.js");
+	addJSInternal ("$js_path/jquery-ui-1.12.1/jquery-ui.min.js");
+	addJSInternal ("$js_path/jquery.tablesorter.js");
+	addJSInternal ("$js_path/picnet.table.filter.min.js");
+	addJSInternal ("$js_path/saveFormValues.js");
+	addJSExternal ("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.1/js/all.min.js");
+}
 
 function renderReport($sFilter)
 {
@@ -586,15 +848,7 @@ function renderReport($sFilter)
 
 	}
 
-	// Load stylesheet and jquery sicripts
-	$css_path=getConfigVar('REPORTS_CSS_PATH');
-	if (empty($css_path)) $css_path = 'reports/css';
-	$js_path=getConfigVar('REPORTS_JS_PATH');
-	if (empty($js_path)) $js_path = 'reports/js';
-	addCSSInternal ("$css_path/style.css");
-	addJSInternal ("$js_path/jquery-latest.js");
-	addJSInternal ("$js_path/jquery.tablesorter.js");
-	addJSInternal ("$js_path/picnet.table.filter.min.js");
+	renderIncludes();
 
 	// Display the stat array
 	echo "\n<h2>$title (".$iTotal.")</h2><ul>";

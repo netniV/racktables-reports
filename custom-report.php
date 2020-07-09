@@ -79,20 +79,9 @@ function renderCustomReport()
 
 	}
 
-	echo '<h2> Custom report</h2><ul>';
+	renderIncludes();
 
-	// Load stylesheet and jquery scripts
-	$css_path=getConfigVar('REPORTS_CSS_PATH');
-	if (empty($css_path)) $css_path = 'reports/css';
-
-	$js_path=getConfigVar('REPORTS_JS_PATH');
-	if (empty($js_path)) $js_path = 'reports/js';
-
-	addCSSInternal ("$css_path/style.css");
-	addJSInternal ("$js_path/saveFormValues.js");
-	addJSInternal ("$js_path/jquery-latest.js");
-	addJSInternal ("$js_path/jquery.tablesorter.js");
-	addJSInternal ("$js_path/picnet.table.filter.min.js");
+	echo '<h1> Custom report</h1><ul>';
 
 	if ( $_SERVER['REQUEST_METHOD'] == 'POST' )
 		echo '<a href="#" class="show_hide">Show/hide search form</a><br/><br/>';
@@ -100,128 +89,123 @@ function renderCustomReport()
 	echo '
       <div class="searchForm">
         <form method="post" name="searchForm">
-          <table class="searchTable">
-            <tr>
-              <th>Object Type</th>
-              <th>Common Values</th>
-              <th>Attributes</th>
-              <th>Tags</th>
-              <th>Misc</th>
-            </tr>
-            <tr>
-              <td valign="top">
-                <table class="searchTable">
+          <div class="searchTable">
+            <div class="searchRow">
+              <div class="searchTitle">
+                <h3>Object Type</h3>
+              </div>
 ';
 	$i=0;
 	foreach ( $phys_typelist as $objectTypeID => $sName ) {
-		if( $i % 2 )
-			echo '<tr class="odd">';
-		else
-			echo '<tr>';
+		$checked = (isset($_POST['objectIDs']) && in_array($objectTypeID, $_POST['objectIDs']) );
+		renderCustomReportSearchCheckBox('objectIDs[]',"objectID${objectTypeID}", $objectTypeID, $sName, $checked);
+	}
 
-		echo '<td><input type="checkbox" name="objectIDs[]" value="'.$objectTypeID.'"';
-		if (isset($_POST['objectIDs']) && in_array($objectTypeID, $_POST['objectIDs']) )
-					  echo ' checked="checked"';
+	$commonValues = array(
+		array('name' => 'sName',        'value' => '1', 'post' => 'sName',        'text' => 'Name'),
+		array('name' => 'label',        'value' => '1', 'post' => 'label',        'text' => 'Label'),
+		array('name' => 'type',         'value' => '1', 'post' => 'type',         'text' => 'Type'),
+		array('name' => 'asset_no',     'value' => '1', 'post' => 'asset_no',     'text' => 'Asset Tag'),
+		array('name' => 'location',     'value' => '1', 'post' => 'location',     'text' => 'Location'),
+		array('name' => 'has_problems', 'value' => '1', 'post' => 'has_problems', 'text' => 'Has Problems'),
+		array('name' => 'comment',      'value' => '1', 'post' => 'comment',      'text' => 'Comment'),
+		array('name' => 'runs8021Q',    'value' => '1', 'post' => 'runs8021Q',    'text' => 'Runs 8021Q'),
+		array('name' => 'MACs',         'value' => '1', 'post' => 'MACs',         'text' => 'MACs'),
+		array('name' => 'IPs',          'value' => '1', 'post' => 'IPs',          'text' => 'IPs'),
+		array('name' => 'Tags',         'value' => '1', 'post' => 'Tags',         'text' => 'Tags'),
+		array('name' => 'Ports',        'value' => '1', 'post' => 'Ports',        'text' => 'Ports'),
+		array('name' => 'Containers',   'value' => '1', 'post' => 'Containers',   'text' => 'Containers'),
+		array('name' => 'Childs',       'value' => '1', 'post' => 'Childs',       'text' => 'Child objects'),
+	);
 
-		echo '	 > '.$sName.' </td></tr>' . PHP_EOL;
-		$i++;
+	echo '
+            </div>
+            <div class="searchRow">
+              <div class="searchTitle">
+                <h3>Common Values</h3>
+              </div>
+';
+
+	foreach ($commonValues as $cv) {
+		$checked = isset($_POST[$cv['post']]);
+		renderCustomReportSearchCheckBox($cv['name'], $cv['name'], $cv['value'], $cv['text'], $checked);
 	}
 
 	echo '
-	            </table>
-              </td>
-              <td valign="top">
-	        <table class="searchTable">
-                  <tr><td><input type="checkbox" name="sName" value="1" ';if (isset($_POST['sName'])) echo ' checked="checked"'; echo '> Name</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="label" value="1" ';if (isset($_POST['label'])) echo ' checked="checked"'; echo '> Label</td></tr>
-                  <tr><td><input type="checkbox" name="type" value="1" ';if (isset($_POST['type'])) echo ' checked="checked"'; echo '> Type</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="asset_no" value="1" ';if (isset($_POST['asset_no'])) echo ' checked="checked"'; echo '> Asset Tag</td></tr>
-                  <tr><td><input type="checkbox" name="location" value="1" ';if (isset($_POST['location'])) echo ' checked="checked"'; echo '> Location</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="has_problems" value="1" ';if (isset($_POST['has_problems'])) echo ' checked="checked"'; echo '> Has Problems</td></tr>
-                  <tr><td><input type="checkbox" name="comment" value="1" ';if (isset($_POST['comment'])) echo ' checked="checked"'; echo '> Comment</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="runs8021Q" value="1" ';if (isset($_POST['runs8021Q'])) echo ' checked="checked"'; echo '> Runs 8021Q</td></tr>
-                  <tr><td><input type="checkbox" name="MACs" value="1" ';if (isset($_POST['MACs'])) echo ' checked="checked"'; echo '> MACs</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="IPs" value="1" ';if (isset($_POST['IPs'])) echo ' checked="checked"'; echo '> IPs</td></tr>
-                  <tr><td><input type="checkbox" name="Tags" value="1" ';if (isset($_POST['Tags'])) echo ' checked="checked"'; echo '> Tags</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="Ports" value="1" ';if (isset($_POST['Ports'])) echo ' checked="checked"'; echo '> Ports</td></tr>
-                  <tr><td><input type="checkbox" name="Containers" value="1" ';if (isset($_POST['Containers'])) echo ' checked="checked"'; echo '> Containers</td></tr>
-                  <tr class="odd"><td><input type="checkbox" name="Childs" value="1" ';if (isset($_POST['Childs'])) echo ' checked="checked"'; echo '> Child objects</td></tr>
-                </table>
-              </td>
-              <td valign="top">
-                <table class="searchTable">
+            </div>
+            <div class="searchRow">
+              <div class="searchTitle">
+                <h3>Attributess</h3>
+              </div>
 ';
-	$i=0;
 	foreach ( $attibutes as $attributeID => $aRow ) {
-		if( $i % 2 )
-			echo '<tr class="odd">';
-		else
-			echo '<tr>';
-
-		echo '<td><input type="checkbox" name="attributeIDs[]" value="'.$attributeID.'"';
-		if (isset($_POST['attributeIDs']) && in_array($attributeID, $_POST['attributeIDs']) )
-			 echo ' checked="checked"';
-
-		echo '> '.$aRow['name'].'</td></tr>' . PHP_EOL;
-		$i++;
+		$sName = $aRow['name'];
+		$checked = (isset($_POST['attributeIDs']) && in_array($attributeID, $_POST['attributeIDs']) );
+		renderCustomReportSearchCheckBox('attributeIDs[]',"attributeID${attributeID}", $attributeID, $sName, $checked);
 	}
 
 	echo '
-                </table>
-              </td>
-              <td valign="top">
-                <table class="searchTable">
+            </div>
+            <div class="searchRow">
+              <div class="searchTitle">
+                <h3>Tag</h3>
+              </div>
 ';
 
-	$i = 0;
 	foreach ( $aTagList as $aTag ) {
-		echo '<tr '.($i%2 ? 'class="odd"' : '').'><td><input type="checkbox" name="tag[' .
-			$aTag['id'] . ']" value="1" ' .
-			( isset($_POST['tag'][$aTag['id']]) ? 'checked="checked" ' : '').'> '.
-			$aTag['tag'].'</td></tr>';
-		$i++;
+		$tagID = $aTag['id'];
+		$sName = $aTag['tag'];
+
+		$checked = (isset($_POST['tagIDs']) && in_array($tagID, $_POST['tagIDs']) );
+		renderCustomReportSearchCheckBox('tagIDs[]',"tagID${tagID}", $tagID, $sName, $checked);
 	}
 
 	if ( count($aTagList) < 1 )
 		echo '<tr><td><i>No Tags available</i></td></tr>';
 
 	echo '
-                </table>
-              </td>
-              <td valign="top">
-                <table class="searchTable">
-                  <tr class="odd"><td><input type="checkbox" name="csv" value="1"> CSV Export</td></tr>
-                  <tr><td><input type="text" name="csvDelimiter" value="," size="1"> CSV Delimiter</td></tr>
-                  <tr class="odd"><td>Name Filter: <i>(Regular Expression)</i></td></tr>
-                  <tr><td><input type="text" name="name_preg" value="'; if (isset($_POST['name_preg'])) echo $_POST['name_preg']; echo '" style="height: 11pt;"></td></tr>
-                  <tr class="odd"><td>Asset Tag Filter: <i>(Regular Expression)</i></td></tr>
-                  <tr><td><input type="text" name="tag_preg" value="'; if (isset($_POST['tag_preg'])) echo $_POST['tag_preg']; echo '" style="height: 11pt;"></td></tr>
-                  <tr class="odd"><td>Comment Filter: <i>(Regular Expression)</i></td></tr>
-                  <tr><td><input type="text" name="comment_preg" value="'; if (isset($_POST['comment_preg'])) echo $_POST['comment_preg']; echo '" style="height: 11pt;"></td></tr>
-                  <tr class="odd"><td>&nbsp;</td></tr>
-                  <tr>
-                    <td>
-                      Save:
-                      <input id="nameQuery" type="text" name="nameQuery" value="" style="height: 11pt; width:150px"/> <input type="button" value=" Ok " onclick="saveQuery();">
-                    </td>
-                  </tr>
-                  <tr class="odd">
-                    <td>
-                      Load:<br/>
-                      <span id="loadButtons"></span>
-                      <script type="text/javascript">
-                        loadButtons();
-                      </script>
-                    </td>
-                  </tr>
-                  <tr><td>&nbsp;</td></tr>
-                  <tr><td align="right"><input type="submit" value=" Search "></td></tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+            </div>
+            <div class="searchRow">
+              <div class="searchTitle">
+                <h3>Filters</h3>
+              </div>
+';
+
+	$preg_tag     = isset($_POST['tag_preg'])     ? $_POST['tag_preg']     : '';
+	$preg_name    = isset($_POST['name_preg'])    ? $_POST['name_preg']    : '';
+	$preg_comment = isset($_POST['comment_preg']) ? $_POST['comment_preg'] : '';
+
+	renderCustomReportSearchCheckBoxReversed('csv','csv','1','CSV Export', '');
+	renderCustomReportSearchTextBox('csvDelimiter', 'csvDelimiter', ',',           'CSV Delimiter');
+	renderCustomReportSearchTextBox('name_preg',    'name_preg',    $preg_name,    'Name: <i>(Regular Expression)</i>');
+	renderCustomReportSearchTextBox('tag_preg',     'tag_preg',     $preg_tag,     'Asset Tag: <i>(Regular Expression)</i>');
+	renderCustomReportSearchTextBox('comment_preg', 'comment_preg', $preg_comment, 'Comment: <i>(Regular Expression)</i>');
+	renderCustomReportSearchButton('search','search','Search','', 'submit');
+	echo '
+              <div class="searchTitle">
+                <h3>Report Functions</h3>
+              </div>
+';
+
+	renderCustomReportSearchTextBox('nameQuery', 'nameQuery', '', 'Report Name:');
+	renderCustomReportSearchButton('buttonSave','buttonSave',' Save ', ' Save Report ', '', 'saveQuery();');
+	echo '
+              <div class="searchTitle">
+                <h3>Saved Reports</h3>
+              </div>
+              <div id="searchReports" class="searchReport">
+';
+	renderStoredCustomReports();
+	echo'
+              </div>
+            </div>
+          </div>
         </form>
-      </div>';
+        <div id="dialog-message">
+          <p><span class="ui-icon ui-icon-alert" style="float:left; margin:12px 12px 20px 0;"></span><span id="dialog-message-text">There was an error</span></p>
+        </div>
+      </div>
+';
 
 	if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
 
@@ -329,6 +313,82 @@ function renderCustomReport()
                  }
                  );
             </script>';
+}
+
+function renderCustomReportSearchCheckBox($name, $id, $value, $text, $checked) {
+	$checked = (!empty($checked)) ? ' checked="checked"' : '';
+	echo "
+              <div class='searchItem'>
+                <input class='searchCheck searchItemLeft' type='checkbox' name='${name}' id='${id}' value='${value}' ${checked}>
+                <label class='searchLabel searchItemRight' for='${id}'>${text}</label>
+              </div>
+";
+}
+
+function renderCustomReportSearchCheckBoxReversed($name, $id, $value, $text, $checked) {
+	$checked = (!empty($checked)) ? ' checked="checked"' : '';
+	echo "
+              <div class='searchItem'>
+                <label class='searchLabel searchItemLeft' for='${id}'>${text}</label>
+                <input class='searchCheck searchItemRight' type='checkbox' name='${name}' id='${id}' value='${value}' ${checked}>
+              </div>
+";
+}
+
+function renderCustomReportSearchTextBox($name, $id, $value, $text) {
+	echo "
+              <div class='searchItem'>
+                <label class='searchLabel searchItemLeft' for='${id}'>${text}</label>
+                <input class='searchText searchItemRight' type='textbox' name='${name}' id='${id}' value='${value}'>
+              </div>
+";
+}
+
+function renderCustomReportSearchButton($name, $id, $value, $text, $buttontype = 'button', $buttonclick = '') {
+	$onclick = empty($buttonclick) ? '' : ' onclick="'.$buttonclick.'" ';
+	echo "
+              <div class='searchItem'>
+                <input class='searchButton searchItemLeft' id='$id' name='$id' type='$buttontype' value='$value' $onclick tooltip='$text'>
+              </div>
+";
+}
+
+function renderCustomReportItem($report) {
+	global $remote_username;
+	$unshare = ($report['shared'] == 'no') ? '' : 'un';
+	$share = ($report['shared'] == 'no') ? 'plus' : 'minus';
+	$owned = ($report['user_name'] == $remote_username);
+	$output = "
+              <div class='searchReportItem'>
+                <label id='searchReportName_${report['id']}' class='searchReportName'>${report['name']}</label>
+                <button id='searchReport_${report['id']}_load' class='searchReportIcon' title='load'><i class='fas fa-print fa-lg'></i></button>
+";
+	if ($owned) {
+		$output .= "
+                <button id='searchReport_${report['id']}_${unshare}share' class='searchReportIcon' title='${unshare}share'><i class='fas fa-folder-$share fa-lg'></i></button>
+<!--
+                <button id='searchReport_${report['id']}_save' class='searchReportIcon' title='save'><i class='far fa-save fa-lg'></i></button>
+-->
+                <button id='searchReport_${report['id']}_delete' class='searchReportIcon' title='delete'><i class='far fa-trash-alt fa-lg'></i></button>
+";
+	}
+	$output .= "
+              </div>
+";
+	return $output;
+}
+
+function renderStoredCustomReports($asOutput = true) {
+	$reports = getCustomReports();
+	$output  = '';
+	foreach ($reports as $report) {
+		$output .= renderCustomReportItem($report);
+	}
+
+	if ($asOutput) {
+		echo $output;
+	}
+	return $output;
 }
 
 /**
