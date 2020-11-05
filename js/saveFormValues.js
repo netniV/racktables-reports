@@ -299,8 +299,12 @@ function saveQuery(sName) {
 		sName = document.getElementById("nameQuery").value;
 	}
 
-	var sData = getFormData(document.forms.searchForm,true);
-	postAction( 'save', { name: sName, data: sData.Json });
+	if (typeof sName == 'undefined' || sName == '') {
+		alert('No report name specified');
+	} else {
+		var sData = getFormData(document.forms.searchForm,true);
+		postAction( 'save', { name: sName, data: sData.Json });
+	}
 }
 
 function shareQuery(id) {

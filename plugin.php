@@ -99,6 +99,7 @@ function plugin_reports_upgrade ()
 		(
 			'0.4.1',
 			'0.5.0',
+			'0.5.1',
 			'1.0.0',
 		);
 
@@ -131,6 +132,7 @@ function plugin_reports_upgrade ()
 			{
 				case '0.4.1':
 				case '0.5.0':
+				case '0.5.1':
 					break;
 
 				case '1.0.0':

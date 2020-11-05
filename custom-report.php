@@ -188,7 +188,7 @@ function renderCustomReport()
 ';
 
 	renderCustomReportSearchTextBox('nameQuery', 'nameQuery', '', 'Report Name:');
-	renderCustomReportSearchButton('buttonSave','buttonSave',' Save ', ' Save Report ', '', 'saveQuery();');
+	renderCustomReportSearchButton('buttonSave','buttonSave',' Save ', ' Save Report ', 'button', 'saveQuery();');
 	echo '
               <div class="searchTitle">
                 <h3>Saved Reports</h3>
@@ -348,7 +348,8 @@ function renderCustomReportSearchButton($name, $id, $value, $text, $buttontype =
 	$onclick = empty($buttonclick) ? '' : ' onclick="'.$buttonclick.'" ';
 	echo "
               <div class='searchItem'>
-                <input class='searchButton searchItemLeft' id='$id' name='$id' type='$buttontype' value='$value' $onclick tooltip='$text'>
+                <label class='searchLabel searchItemLeft' for='${id}'>&nbsp;</label>
+                <input class='searchButton searchItemRight' id='$id' name='$id' type='$buttontype' value='$value' $onclick tooltip='$text'>
               </div>
 ";
 }
