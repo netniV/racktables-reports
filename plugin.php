@@ -300,7 +300,8 @@ function getCustomReports($all = false) {
 	$params = ($all) ? array() : array($remote_username);
 	$result = usePreparedSelectBlade
 	(
-		'SELECT * FROM `CustomReports`' . $where,
+		'SELECT * FROM `CustomReports`' . $where .
+		' ORDER BY Name ASC',
 		$params
 	);
 
