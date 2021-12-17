@@ -5,17 +5,51 @@
 // 2016-02-04 - Mogilowski Sebastian <sebastian@mogilowski.net>
 // 2018-09-10 - Lars Vogdt <lars@linux-schulserver.de>
 
+global $customReportOptions;
+$customReportOptions = array(
+	array('name' => 'sName',        'value' => '1', 'post' => 'sName',        'text' => 'Name'),
+	array('name' => 'label',        'value' => '1', 'post' => 'label',        'text' => 'Label'),
+	array('name' => 'type',         'value' => '1', 'post' => 'type',         'text' => 'Type'),
+	array('name' => 'asset_no',     'value' => '1', 'post' => 'asset_no',     'text' => 'Asset Tag'),
+	array('name' => 'location',     'value' => '1', 'post' => 'location',     'text' => 'Location'),
+	array('name' => 'has_problems', 'value' => '1', 'post' => 'has_problems', 'text' => 'Has Problems'),
+	array('name' => 'comment',      'value' => '1', 'post' => 'comment',      'text' => 'Comment'),
+	array('name' => 'runs8021Q',    'value' => '1', 'post' => 'runs8021Q',    'text' => 'Runs 8021Q'),
+	array('name' => 'MACs',         'value' => '1', 'post' => 'MACs',         'text' => 'MACs'),
+	array('name' => 'IPs',          'value' => '1', 'post' => 'IPs',          'text' => 'IPs'),
+	array('name' => 'Tags',         'value' => '1', 'post' => 'Tags',         'text' => 'Tags'),
+	array('name' => 'Ports',        'value' => '1', 'post' => 'Ports',        'text' => 'Ports'),
+	array('name' => 'Containers',   'value' => '1', 'post' => 'Containers',   'text' => 'Containers'),
+	array('name' => 'Childs',       'value' => '1', 'post' => 'Childs',       'text' => 'Child objects'),
+);
 
-function renderCustomReport()
+
+function renderCustomReport($fieldData = null)
 {
+	if ($fieldData == null && isset($_GET['id'])) {
+		$reportId = genericAssertion ('id', 'uint0');
+		if (!empty($reportId)) {
+			$reportData = customReportLoad($reportId);
+			if (!empty($reportData['data'])) {
+				$fieldData  = convertReportData($reportData['data']);
+			}
+		}
+	}
+
 	# Get object list
 	$phys_typelist = readChapter (CHAP_OBJTYPE, 'o');
 	$attibutes     = getAttrMap();
 	$aTagList      = getTagList();
+	$runReport     = ($fieldData != null) || ($_SERVER['REQUEST_METHOD'] == 'POST');
+	$fieldData     = $fieldData ?? $_POST;
 	$aReportVar    = getCustomReportPostVars();
 	$report_type   = 'custom';
 
-	if ( ( $_SERVER['REQUEST_METHOD'] == 'POST' ) && ( isset( $_POST['csv'] ) ) ) {
+	if ( $runReport ) {
+		$aResult = getResult($fieldData); // Get Result
+	}
+
+	if ( ( $runReport ) && ( isset( $fieldData['csv'] ) ) ) {
 
 		header('Content-type: text/csv');
 		header('Content-Disposition: attachment; filename=export_'.$report_type.'_'.date("Ymdhis").'.csv');
@@ -24,17 +58,16 @@ function renderCustomReport()
 
 		$outstream = fopen("php://output", "w");
 
-		$aResult = getResult($_POST); // Get Result
-		$_POST['name'] = validateColumns($_POST); // Fix empty Columns
+		$fieldData['name'] = validateColumns($fieldData); // Fix empty Columns
 
-		$csvDelimiter = (isset( $_POST['csvDelimiter'] )) ? $_POST['csvDelimiter'] : ',';
+		$csvDelimiter = (isset( $fieldData['csvDelimiter'] )) ? $fieldData['csvDelimiter'] : ',';
 
 		/* Create Header */
 		$aCSVRow = array();
 		foreach ($aReportVar as $postName => $postData) {
-			if ( isset( $_POST[$postName] ) && $_POST[$postName] )
+			if ( isset( $fieldData[$postName] ) && $fieldData[$postName] )
 				if ($postName == 'attributeIDs') {
-					foreach ( $_POST['attributeIDs'] as $attributeID )
+					foreach ( $fieldData['attributeIDs'] as $attributeID )
 						array_push($aCSVRow, $attibutes[$attributeID]['name']);
 				} else {
 					array_push($aCSVRow, $postData["Title"]);
@@ -48,7 +81,7 @@ function renderCustomReport()
 			$aCSVRow = array();
 
 			foreach ($aReportVar as $postName => $postData) {
-				if ( isset( $_POST[$postName] ) ) {
+				if ( isset( $fieldData[$postName] ) ) {
 					$postField = $postName;
 					if ( isset( $postData['Data'] ) ) {
 						$postField = $postData['Data'];
@@ -56,7 +89,7 @@ function renderCustomReport()
 
 					$resultVal = '';
 					if (isset($postData['Csv'])) {
-						$resultVal = call_user_func($postData['Csv'],$Result);
+						$resultVal = call_user_func($postData['Csv'],$Result, $fieldData);
 					} elseif (isset($Result[$postField])) {
 						$resultVal = $Result[$postField];
 					}
@@ -83,8 +116,8 @@ function renderCustomReport()
 
 	echo '<h1> Custom report</h1><ul>';
 
-	if ( $_SERVER['REQUEST_METHOD'] == 'POST' )
-		echo '<a href="#" class="show_hide">Show/hide search form</a><br/><br/>';
+	if ( $runReport )
+		echo '<a href="#" class="show_hide">Show/hide search form - Search found ' . count($aResult) . ' row(s)<span id="customTableFilterText"></span></a>';
 
 	echo '
       <div class="searchForm">
@@ -97,26 +130,9 @@ function renderCustomReport()
 ';
 	$i=0;
 	foreach ( $phys_typelist as $objectTypeID => $sName ) {
-		$checked = (isset($_POST['objectIDs']) && in_array($objectTypeID, $_POST['objectIDs']) );
+		$checked = (isset($fieldData['objectIDs']) && in_array($objectTypeID, $fieldData['objectIDs']) );
 		renderCustomReportSearchCheckBox('objectIDs[]',"objectID${objectTypeID}", $objectTypeID, $sName, $checked);
 	}
-
-	$commonValues = array(
-		array('name' => 'sName',        'value' => '1', 'post' => 'sName',        'text' => 'Name'),
-		array('name' => 'label',        'value' => '1', 'post' => 'label',        'text' => 'Label'),
-		array('name' => 'type',         'value' => '1', 'post' => 'type',         'text' => 'Type'),
-		array('name' => 'asset_no',     'value' => '1', 'post' => 'asset_no',     'text' => 'Asset Tag'),
-		array('name' => 'location',     'value' => '1', 'post' => 'location',     'text' => 'Location'),
-		array('name' => 'has_problems', 'value' => '1', 'post' => 'has_problems', 'text' => 'Has Problems'),
-		array('name' => 'comment',      'value' => '1', 'post' => 'comment',      'text' => 'Comment'),
-		array('name' => 'runs8021Q',    'value' => '1', 'post' => 'runs8021Q',    'text' => 'Runs 8021Q'),
-		array('name' => 'MACs',         'value' => '1', 'post' => 'MACs',         'text' => 'MACs'),
-		array('name' => 'IPs',          'value' => '1', 'post' => 'IPs',          'text' => 'IPs'),
-		array('name' => 'Tags',         'value' => '1', 'post' => 'Tags',         'text' => 'Tags'),
-		array('name' => 'Ports',        'value' => '1', 'post' => 'Ports',        'text' => 'Ports'),
-		array('name' => 'Containers',   'value' => '1', 'post' => 'Containers',   'text' => 'Containers'),
-		array('name' => 'Childs',       'value' => '1', 'post' => 'Childs',       'text' => 'Child objects'),
-	);
 
 	echo '
             </div>
@@ -126,8 +142,9 @@ function renderCustomReport()
               </div>
 ';
 
-	foreach ($commonValues as $cv) {
-		$checked = isset($_POST[$cv['post']]);
+	global $customReportOptions;
+	foreach ($customReportOptions as $cv) {
+		$checked = isset($fieldData[$cv['post']]);
 		renderCustomReportSearchCheckBox($cv['name'], $cv['name'], $cv['value'], $cv['text'], $checked);
 	}
 
@@ -140,7 +157,7 @@ function renderCustomReport()
 ';
 	foreach ( $attibutes as $attributeID => $aRow ) {
 		$sName = $aRow['name'];
-		$checked = (isset($_POST['attributeIDs']) && in_array($attributeID, $_POST['attributeIDs']) );
+		$checked = (isset($fieldData['attributeIDs']) && in_array($attributeID, $fieldData['attributeIDs']) );
 		renderCustomReportSearchCheckBox('attributeIDs[]',"attributeID${attributeID}", $attributeID, $sName, $checked);
 	}
 
@@ -156,7 +173,7 @@ function renderCustomReport()
 		$tagID = $aTag['id'];
 		$sName = $aTag['tag'];
 
-		$checked = (isset($_POST['tagIDs']) && in_array($tagID, $_POST['tagIDs']) );
+		$checked = (isset($fieldData['tagIDs']) && in_array($tagID, $fieldData['tagIDs']) );
 		renderCustomReportSearchCheckBox('tagIDs[]',"tagID${tagID}", $tagID, $sName, $checked);
 	}
 
@@ -171,9 +188,9 @@ function renderCustomReport()
               </div>
 ';
 
-	$preg_tag     = isset($_POST['tag_preg'])     ? $_POST['tag_preg']     : '';
-	$preg_name    = isset($_POST['name_preg'])    ? $_POST['name_preg']    : '';
-	$preg_comment = isset($_POST['comment_preg']) ? $_POST['comment_preg'] : '';
+	$preg_tag     = isset($fieldData['tag_preg'])     ? $fieldData['tag_preg']     : '';
+	$preg_name    = isset($fieldData['name_preg'])    ? $fieldData['name_preg']    : '';
+	$preg_comment = isset($fieldData['comment_preg']) ? $fieldData['comment_preg'] : '';
 
 	renderCustomReportSearchCheckBoxReversed('csv','csv','1','CSV Export', '');
 	renderCustomReportSearchTextBox('csvDelimiter', 'csvDelimiter', ',',           'CSV Delimiter');
@@ -207,10 +224,9 @@ function renderCustomReport()
       </div>
 ';
 
-	if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
+	if ( $runReport ) {
 
-		$aResult = getResult($_POST); // Get Result
-		$_POST['sName'] = validateColumns($_POST); // Fix empty Columns
+		$fieldData['sName'] = validateColumns($fieldData); // Fix empty Columns
 
 		if ( count($aResult) > 0) {
 			echo '
@@ -218,11 +234,11 @@ function renderCustomReport()
         <thead>
           <tr>
 ';
-
+			echo "<th>#</th>";
 			foreach ($aReportVar as $varName => $varData) {
-				if ( isset( $_POST[$varName] ) ) {
+				if ( isset( $fieldData[$varName] ) ) {
 					if ( $varName == 'attributeIDs' ) {
-						foreach ( $_POST['attributeIDs'] as $attributeID )
+						foreach ( $fieldData['attributeIDs'] as $attributeID )
 							echo '<th>'.$attibutes[$attributeID]['name'].'</th>';
 					} else {
 						echo '<th>' . $varData['Title'] . '</th>';
@@ -236,17 +252,20 @@ function renderCustomReport()
         <tbody>
 ';
 
+			$resultCount = 0;
 			foreach ( $aResult as $Result ) {
+				$resultCount++;
 				echo '
           <tr>
+            <td>' . $resultCount . '</td>
 ';
 				foreach ( $aReportVar as $varName => $varData) {
-					if ( isset( $_POST[$varName] ) ) {
+					if ( isset( $fieldData[$varName] ) ) {
 						echo '<td>';
 
 						$spanClass = '';
 						if ( isset( $varData['Span'] ) ) {
-							$spanName = call_user_func($varData['Span'], $Result);
+							$spanName = call_user_func($varData['Span'], $Result, $fieldData);
 						}
 
 						if (!empty($spanClass)) {
@@ -263,7 +282,7 @@ function renderCustomReport()
 							$resultVal = $Result[$varField];
 							if ( isset( $varData['Html'] ) ) {
 //mjv								echo 'Calling ' . $varName . "'s ". $varData['Html'] . '<br/>';
-								$resultVal = call_user_func($varData['Html'], $Result);
+								$resultVal = call_user_func($varData['Html'], $Result, $fieldData);
 							}
 						}
 
@@ -294,25 +313,40 @@ function renderCustomReport()
 		}
      }
 
-     echo '<script type="text/javascript">
+     ?>
+	<style>
+		table.tablesorter thead tr th, table.tablesorter tfoot tr th {
+			position: sticky;
+			top: 0;
+		}
+	</style>
+	<script type="text/javascript">
                $(document).ready(function()
                  {
+                   var totalCount = <?=count($aResult)?>;
                    $.tablesorter.defaults.widgets = ["zebra"];
                    $("#customTable").tablesorter(
                      { headers: {
-                     }, sortList: [[0,0]] }
+                     }, sortList: [[1,0]] }
                    );
-                   $("#customTable").tableFilter();
+                   $("#customTable").tableFilter({
+                     filteredRows: function(e, filter) {
+                       var filterCount = $('#customTable tr:visible').length - 2;
+                       var filterText = (filterCount == totalCount) ? '' : (', filter showing ' + filterCount + ' row(s)');
+                       $('#customTableFilterText').text(filterText);
+                     }
+                   });
 
                    $(".show_hide").show();
 
                    $(".show_hide").click(function(){
-                     $(".searchForm").slideToggle(\'slow\');
+                     $(".searchForm").slideToggle('slow');
                    });
 
                  }
-                 );
-            </script>';
+               );
+       </script>
+       <?php
 }
 
 function renderCustomReportSearchCheckBox($name, $id, $value, $text, $checked) {
@@ -357,11 +391,13 @@ function renderCustomReportSearchButton($name, $id, $value, $text, $buttontype =
 function renderCustomReportItem($report) {
 	global $remote_username;
 	$unshare = ($report['shared'] == 'no') ? '' : 'un';
-	$share = ($report['shared'] == 'no') ? 'plus' : 'minus';
-	$owned = ($report['user_name'] == $remote_username);
-	$output = "
+	$share   = ($report['shared'] == 'no') ? 'plus' : 'minus';
+	$owned   = ($report['user_name'] == $remote_username);
+	//$href    = makeHref ( array( 'module' => 'redirect', 'page' => 'reports', 'tab' => 'custom', 'op' => 'run', 'id' => $report['id'] ) ) . 
+	$href    = makeHref ( array( 'page' => 'reports', 'tab' => 'custom', 'id' => $report['id'] ) );
+	$output  = "
               <div class='searchReportItem'>
-                <label id='searchReportName_${report['id']}' class='searchReportName'>${report['name']}</label>
+                <a class='searchReportName' href='{$href}'><label id='searchReportName_${report['id']}'>${report['name']}</label></a>
                 <button id='searchReport_${report['id']}_load' class='searchReportIcon' title='load'><i class='fas fa-print fa-lg'></i></button>
 ";
 	if ($owned) {
@@ -414,6 +450,7 @@ function getResult ( $post ) {
 	$locationRealm = false;
 
 	$sFilter = '';
+
 	if ( isset ($post['objectIDs']) ) {
 		foreach ( $post['objectIDs'] as $sFilterValue ) {
 			$sFilter.='{$typeid_'.$sFilterValue.'} or ';
@@ -481,9 +518,9 @@ function getResult ( $post ) {
 	}
 
 	// Tags
-	if ( (isset ($post['tag'])) && ( count($post['tag']) >0 ) ) {
+	if ( (isset ($post['tagIDs'])) && ( count($post['tagIDs']) >0 ) ) {
 		$aTemp = array();
-		$aSearchTags = array_keys($post['tag']);
+		$aSearchTags = $post['tagIDs'];//array_keys($post['tag']);
 
 		foreach ( $aResult as $Result ) {
 
@@ -551,5 +588,40 @@ function validateColumns($POST) {
 	     (!isset($POST['label'])) &&
 	     (!isset($POST['attributeIDs'])) ) {
 		return true;
+	}
+}
+
+function convertReportData($reportData) {
+	$outputData = null;
+	$reportData = json_decode($reportData, true);
+	if (!empty($reportData['data'])) {
+		$outputData = $reportData['data'];
+		convertReportDataIds($outputData, 'object');
+		convertReportDataIds($outputData, 'attribute');
+		convertReportDataIds($outputData, 'tag');
+		convertReportDataValues($outputData);
+	}
+
+	return $outputData;
+}
+
+function convertReportDataIds(&$reportData, $prefix) {
+	$prefix .= 'ID';
+	$ids = [];
+	foreach (array_keys($reportData) as $key) {
+		if (substr($key, 0, strlen($prefix)) == $prefix) {
+			$ids[] = $reportData[$key]['value'];
+			unset($reportData[$key]);
+		}
+	}
+	$reportData[$prefix . 's'] = $ids;
+}
+
+function convertReportDataValues(&$reportData) {
+	foreach (array_keys($reportData) as $key) {
+		if (!empty($reportData[$key]['value'])) {
+			$value = $reportData[$key]['value'];
+			$reportData[$key] = $value;
+		}
 	}
 }

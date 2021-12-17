@@ -315,8 +315,17 @@ function unshareQuery(id) {
 	postAction( 'share', { id: id, shared: 'no' });
 }
 
-function loadQuery(id) {
-	postAction( 'load', { id: id });
+function loadQuery(id, search) {
+	var completeAction = defaultActionComplete;
+
+	if (typeof search != 'undefined') {
+		completeAction = function(data, status, request) {
+			defaultActionComplete(data, status, request);
+			$('#search').click();
+		};
+	}
+
+	postAction( 'load', { id: id }, completeAction);
 }
 
 function deleteQuery(id) {

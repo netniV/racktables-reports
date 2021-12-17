@@ -4,7 +4,7 @@
 
 // 2016-02-04 - Mogilowski Sebastian <sebastian@mogilowski.net>
 
-error_reporting(E_ERROR | E_PARSE);
+// error_reporting(E_ERROR | E_PARSE);
 
 /**
  * Get the location of an RackTables object

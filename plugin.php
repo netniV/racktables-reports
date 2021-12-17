@@ -41,6 +41,7 @@ function plugin_reports_init ()
 	registerTabHandler('reports', 'switches', 'renderSwitchReport');
 	registerTabHandler('reports', 'vm', 'renderVMReport');
 
+	registerOpHandler ('reports', 'custom', 'run', 'runCustomReport');
 	registerOpHandler ('reports', 'custom', 'load', 'loadCustomReport');
 	registerOpHandler ('reports', 'custom', 'save', 'saveCustomReport');
 	registerOpHandler ('reports', 'custom', 'delete', 'deleteCustomReport');
@@ -235,22 +236,32 @@ function loadCustomReport() {
 	);
 }
 
+function runCustomReport() {
+	$reportData = customReportLoad
+	(
+		genericAssertion ('id', 'uint0')
+	);
+
+	$convertedData = customReportConvert($reportData);
+}
+
 function customReportLoad($id,$name='') {
 	if (!empty($name)) {
-		$result = usePreparedSelectBlade
+		$query = usePreparedSelectBlade
 		(
 			'SELECT * FROM `CustomReports` WHERE `name` = ?',
 			array($name)
 		);
 	} else {
-		$result = usePreparedSelectBlade
+		$query = usePreparedSelectBlade
 		(
 			'SELECT * FROM `CustomReports` WHERE `id` = ?',
 			array($id)
 		);
 	}
 
-	return $result->fetch (PDO::FETCH_ASSOC);
+	$result = $query->fetch (PDO::FETCH_ASSOC);
+	return $result;
 }
 
 function deleteCustomReport() {
@@ -312,7 +323,7 @@ function formatCsvFieldType($Result) {
 	static $phys_typelist;
 	if (empty($phys_typelist))
 		$phys_typelist = readChapter (CHAP_OBJTYPE, 'o');
-	return isset( $Result['objtype_id'] ) ? $phys_typelist[$Result['objtype_id']] : '';
+	return isset( $Result['objtype_id'] ) ? $phys_typelist[$Result['objtype_id']] . ' ' . $Result['objtype_id'] : '';
 }
 
 function formatCsvFieldComment($Result) {
@@ -355,10 +366,10 @@ function formatCsvFieldIP($Result) {
 	return $sTemp;
 }
 
-function formatCsvFieldAttribute($Result) {
+function formatCsvFieldAttribute($Result, $fieldData) {
 	$attributes = getAttrValues ($Result['id']);
 	$aCSVRow = array();
-	foreach ( $_POST['attributeIDs'] as $attributeID ) {
+	foreach ( $fieldData['attributeIDs'] as $attributeID ) {
 		$aValue = '';
 		if ( isset( $attributes[$attributeID] ) ) {
 			if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
@@ -465,10 +476,10 @@ function formatHtmlFieldIP($Result) {
 	return $aResult;
 }
 
-function formatHtmlFieldAttribute($Result) {
+function formatHtmlFieldAttribute($Result, $fieldData) {
 	$attributes = getAttrValues ($Result['id']);
 	$aResult = array();
-	foreach ( $_POST['attributeIDs'] as $attributeID ) {
+	foreach ( $fieldData['attributeIDs'] as $attributeID ) {
 		$aValue = '&nbsp;';
 		if ( isset( $attributes[$attributeID] ) ) {
 			if ( isset( $attributes[$attributeID]['a_value'] ) && ($attributes[$attributeID]['a_value'] != '') )
